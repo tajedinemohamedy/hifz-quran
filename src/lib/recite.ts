@@ -4,13 +4,15 @@ import { pageStartEnd, quran } from "./quran";
 import { addWeak, prefs } from "./prefs";
 import { bumpCounter, dayPlan } from "./plan";
 import { notify } from "./notify";
-import { engine, listen, loadTracker, log, onEngine, preload, send, stopListening, type SessionWord, type TrackerApi, type WordInfo } from "./recognition";
+import { engine, listen, loadTracker, log, onEngine, preload, send, stopListening, type SessionWord, type TajweedWord, type TrackerApi, type WordInfo } from "./recognition";
 
 /** 0 unseen · 1 ok · 2 wrong · 3 missed · 4 fixed (wrong, then right) */
 export interface WordState { s: number; shown: boolean; hint?: boolean; info?: WordInfo }
 export const WORD_CLASS = ["", "ok", "wrong", "missed", "fixed"];
 export const isMistake = (w: WordState) => w.s === 2 || w.s === 3;
 export const isRight = (w: WordState) => w.s === 1 || w.s === 4;
+/** "jali" when a word has a clear tajweed mistake, "khafi" for fine points only, null when none */
+export const tajweedLevel = (t?: TajweedWord) => (!t?.notes.length ? null : t.notes.some((n) => n.severity === "jali") ? "jali" : "khafi");
 
 export interface ReciteSummary { judged: number; ok: number; mistakes: number[]; hints: number; score: number }
 
@@ -23,6 +25,7 @@ export const recite = createStore({
   showText: false,
   hints: 0,
   summary: null as ReciteSummary | null,
+  tj: {} as Record<number, TajweedWord>, // tajweed of each word, judged breath by breath
 });
 
 let api: TrackerApi | null = null;
@@ -40,7 +43,7 @@ export async function prepareRecite(page: number) {
   }
   const [v0, v1] = pageStartEnd(page);
   const words = api.sessionWords(quran().V, v0, v1, quran().G);
-  recite.set({ page, words, st: words.map(() => ({ s: 0, shown: false })), cur: 0, lost: false, hints: 0, summary: null });
+  recite.set({ page, words, st: words.map(() => ({ s: 0, shown: false })), cur: 0, lost: false, hints: 0, summary: null, tj: {} });
 }
 
 export async function startRecite() {
@@ -77,8 +80,22 @@ function summarize() {
   if (page === dayPlan().newPage && score >= 90) { bumpCounter("recites", 1); notify.info("recitationCounted", undefined, "counted"); }
 }
 
+/** a breath was judged for tajweed: keep each word's remarks; clear mistakes join the review list */
+function tajweedJudged(judged: TajweedWord[]) {
+  const { words, tj } = recite.get();
+  const next = { ...tj };
+  for (const w of judged) {
+    next[w.k] = w;
+    if (w.notes.length) log(tajweedLevel(w) === "jali" ? "error" : "warn", "logTajweedWord", { word: words[w.k].text, n: w.notes.length });
+  }
+  recite.set({ tj: next });
+  const verses = [...new Set(judged.filter((w) => tajweedLevel(w) === "jali").map((w) => words[w.k].verse))];
+  if (verses.length) addWeak(verses);
+}
+
 if (typeof window !== "undefined") {
   onEngine((e) => {
+    if (e.type === "tajweed") return tajweedJudged(e.words);
     if (e.type !== "update") return;
     const { st: prev, words, lost } = recite.get();
     const st = prev.slice();

@@ -16,10 +16,10 @@ function MicButton() {
   const busy = engine.use((s) => s.mode === "recite" && s.mic !== "on");
   return (
     <button onClick={() => (on ? stopRecite() : void startRecite())} aria-label={on ? t("stop") : t("startReciting")}
-      className={cn("relative grid size-16 place-items-center rounded-full text-white shadow-lg transition-all duration-300 active:scale-95",
+      className={cn("relative grid size-14 shrink-0 place-items-center rounded-full text-white shadow-lg transition-all duration-300 active:scale-95",
         on ? "bg-destructive" : "bg-primary text-primary-foreground")}>
       {on && !busy && <span className="absolute inset-0 animate-ping rounded-full bg-destructive/30 [animation-duration:1.8s]" />}
-      {on ? <Square className="relative size-6" fill="currentColor" /> : <Mic className="relative size-7" />}
+      {on ? <Square className="relative size-6" fill="currentColor" /> : <Mic className="relative size-6" />}
     </button>
   );
 }
@@ -45,11 +45,15 @@ export function TrackerPanel() {
   const inferMs = engine.use((s) => s.inferMs), seconds = engine.use((s) => s.seconds);
   const ok = r.st.filter(isRight).length, bad = r.st.filter(isMistake).length, total = r.words.length;
   const done = r.st.filter((x) => x.s).length;
+  const tajweed = Object.values(r.tj).filter((w) => w.notes.length).length; // words with a tajweed remark
 
   return (
-    <div className="space-y-3 p-3">
+    <div className="space-y-2.5 p-3">
       <PipelineSteps />
-      {r.summary && !listening ? <Summary /> : <EngineHeadline />}
+      <div className="flex items-center gap-3">
+        <MicButton />
+        <div className="min-w-0 flex-1">{r.summary && !listening ? <Summary /> : <EngineHeadline />}</div>
+      </div>
 
       {r.lost && listening && (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2 text-[13px] duration-300 animate-in fade-in slide-in-from-bottom-1">
@@ -65,20 +69,20 @@ export function TrackerPanel() {
           <span className="flex gap-2">
             <span className="text-primary">✓ {n(ok)}</span>
             <span className={bad ? "text-destructive" : ""}>✗ {n(bad)}</span>
+            <span className={tajweed ? "text-warning" : ""}>{t("tjCount", { n: tajweed })}</span>
             {listening && <span>{n(seconds.toFixed(0))}s · {t("ms", { n: inferMs })}</span>}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center">
-        <Button variant="ghost" size="sm" className="justify-self-start text-muted-foreground" onClick={() => setMode("read")}><X />{t("exit")}</Button>
-        <MicButton />
-        <Button variant="ghost" size="sm" className="justify-self-end text-muted-foreground" aria-pressed={r.showText}
+      <div className="flex items-start justify-between gap-2">
+        <Button variant="ghost" size="sm" className="-ms-2 text-muted-foreground" onClick={() => setMode("read")}><X />{t("exit")}</Button>
+        <div className="min-w-0 flex-1 pt-1.5"><ActivityLog /></div>
+        <Button variant="ghost" size="sm" className="-me-2 text-muted-foreground" aria-pressed={r.showText}
           onClick={() => recite.set((s) => ({ showText: !s.showText }))}>
           {r.showText ? <EyeOff /> : <Eye />}{r.showText ? t("hideText") : t("showText")}
         </Button>
       </div>
-      <ActivityLog />
     </div>
   );
 }

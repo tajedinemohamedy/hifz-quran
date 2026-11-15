@@ -39,7 +39,15 @@ export interface TrackerApi {
   keyText(key: { c: number }[]): string;
 }
 export interface WordInfo { heard?: number[]; mut?: { v: number; wi: number; text: string } | null }
+/** one tajweed remark on a word (public/engine/tajweed.js); worded by the page in the user's language */
+export type TajweedKind =
+  | "madd_short" | "madd_long" | "madd_missing" | "madd_added" | "madd_uneven" | "ghunnah_short" | "ikhfa_izhar" | "ikhfa_short"
+  | "iqlab_missed" | "idgham_missed" | "idgham_ghunnah_short" | "shadda_missing" | "qalqalah_missing" | "letter" | "vowel"
+  | "dropped" | "added" | "word_missing" | "waqf";
+export interface TajweedNote { kind: TajweedKind; severity: "jali" | "khafi"; rule: string; vars: Record<string, string | number> }
+export interface TajweedWord { k: number; notes: TajweedNote[]; madd: { rule: string; heard: number }[] }
 export type EngineEvent =
+  | { type: "tajweed"; words: TajweedWord[]; ms: number }
   | { type: "update"; commits: { k: number; st: number; info: WordInfo }[]; tentative: number[]; current: number; lost: boolean; done: boolean; final: boolean }
   | { type: "finding" }
   | { type: "found"; results: { verse: number; score: number }[]; tooShort: boolean };
@@ -98,7 +106,15 @@ function handle(d: { type: string; [k: string]: unknown }) {
     }
     case "finding":
     case "found":
+    case "tajweed":
       listeners.forEach((f) => f(d as unknown as EngineEvent));
+      return;
+    case "tajweedData":
+      if (d.ok) log("ok", "logTajweedReady", { n: d.verses as number });
+      else { log("warn", "logTajweedFailed"); notify.warning("tajweedUnavailable", undefined, "tajweed"); }
+      return;
+    case "tajweedSkipped":
+      if (d.reason !== "silent") log("info", d.reason === "long" ? "logTajweedLong" : "logTajweedNoData");
       return;
     case "error": {
       const where = d.where as string;

@@ -135,6 +135,10 @@
 .tw.wrong { color: var(--destructive); background: color-mix(in srgb, var(--destructive) 12%, transparent); }
 .tw.missed { color: var(--destructive); background: color-mix(in srgb, var(--destructive) 12%, transparent); text-decoration: line-through dotted; }
 .tw.fixed, .tw.hinted { color: var(--warning); }
+/* tajweed, judged per breath: a fine point (lahn khafi) or a clear mistake (lahn jali) */
+.tw.tj-khafi, .tw.tj-jali { text-decoration-line: underline; text-decoration-style: wavy; text-decoration-thickness: 1.5px; text-underline-offset: 0.45em; }
+.tw.tj-khafi { text-decoration-color: var(--warning); }
+.tw.tj-jali { text-decoration-color: var(--destructive); }
 
 @keyframes flash { 0%, 60% { background: var(--warning-soft); } }
 .anim-flash { animation: flash 2.4s ease; }

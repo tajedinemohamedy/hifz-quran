@@ -3,6 +3,7 @@ import { prefs, type Lang } from "./prefs";
 import { quran, thumnNumber, thumnOfVerse } from "./quran";
 import { pageRuns } from "./plan";
 import { SURA_LATIN } from "./surahNames";
+import type { TajweedKind, TajweedNote } from "./recognition";
 
 const en = {
   // shell
@@ -61,6 +62,24 @@ const en = {
   tzGreat: "Solid memorization", tzGood: "Good · review the red words", tzLow: "Repeat the page before moving on",
   summaryLine: "{judged} words · {bad} mistakes, kept for review",
   reciteDone: "Recitation checked · {pct}%", recitationCounted: "Counted as today's recitation", nothingJudged: "Nothing was recognized · recite a little longer",
+  // tajweed (wording ported from the HisnLabs rule engine)
+  tajweed: "Tajweed", tjCount: "{n} tajweed", tjSevJali: "Clear mistake", tjSevKhafi: "Fine point", tjMaddHeard: "{name}: {heard}",
+  tjLimits: "Not checked yet: taqlil/imala, heavy or light ra and lam. Your teacher has the final word.",
+  tjMaddShort: "{name} too short: {heard} instead of {want}", tjMaddLong: "{name} too long: {heard} instead of {want}",
+  tjMaddMissing: "{name} dropped: the vowel must be lengthened", tjMaddAdded: "A vowel lengthened where there is no madd",
+  tjMaddUneven: "{name}: keep the same length every time ({lens})", tjGhunnahShort: "Ghunnah too short: hold the nasal sound for 2 counts",
+  tjIkhfaIzhar: "Ikhfaʾ: the nun was pronounced clearly; hide it with ghunnah", tjIkhfaShort: "Ikhfaʾ: the ghunnah is too short",
+  tjIqlabMissed: "Iqlab: the nun becomes a hidden mim with ghunnah before ب", tjIdghamMissed: "Idgham: the nun was pronounced; merge it into {letter}",
+  tjIdghamGhunnahShort: "Idgham with ghunnah: the ghunnah is missing", tjShaddaMissing: "The shadda on {letter} was not pronounced",
+  tjQalqalahMissing: "Qalqalah missing on {letter}: let it bounce", tjLetter: "Pronounced {heard} instead of {want}",
+  tjVowel: "Wrong vowel: {heard} instead of {want}", tjDropped: "A sound was dropped: {want}", tjAdded: "An extra sound: {heard}",
+  tjWordMissing: "This word was not heard", tjWaqf: "You stopped where there is no stop mark: continue to the mark ۖ, or go back a little before restarting",
+  maddNormal: "natural madd", maddMonfasel: "separated madd (munfasil)", maddMottasel: "joined madd (muttasil)", maddMottaselPause: "joined madd at a stop",
+  maddLazem: "necessary madd (lazim)", maddAared: "madd before a stop (ʿarid)", maddLeen: "soft madd (lin)", maddBadal: "madd after a hamza (badal)",
+  maddLeenHamza: "soft madd before a hamza (lin)", vowelA: "a (fatha)", vowelU: "u (damma)", vowelI: "i (kasra)", countsN: "{n} counts", noMadd: "no madd",
+  logTajweedReady: "Tajweed rules loaded ({n} verses)", logTajweedFailed: "Couldn't load the tajweed rules · words are still checked",
+  tajweedUnavailable: "Tajweed rules unavailable · words are still checked", logTajweedLong: "A breath over 29 s: its tajweed was not judged",
+  logTajweedNoData: "No tajweed data for this verse: words only", logTajweedWord: "«{word}»: {n} tajweed remarks",
 
   // recitation check: activity log
   logRuntime: "Loading the speech runtime", logDownload: "Downloading the model ({mb} MB)", logCached: "Model found on this device",
@@ -109,7 +128,7 @@ const en = {
   storageBlocked: "This browser blocks saving · your progress won't be kept",
   progressDamaged: "Your saved progress couldn't be read", progressDamagedHint: "A copy was kept aside. Restore a backup code in Settings, or start again.",
   about: "About",
-  aboutText: "Text and font: King Fahd Complex (KFGQPC) Warsh v10, Warsh verse count. Recitation: Sheikh Mohamed Laghdaf, timings from the khatmah project. The recitation check runs on your device and judges words only (missing, different, similar passage), not tajweed: your teacher has the final word.",
+  aboutText: "Text and font: King Fahd Complex (KFGQPC) Warsh v10, Warsh verse count. Recitation: Sheikh Mohamed Laghdaf, timings from the khatmah project. The recitation check runs on your device: words (missing, different, similar passage) and Warsh tajweed (madd, ghunnah, ikhfaʾ, iqlab, idgham, shadda, qalqalah, stops), with the HisnLabs tajweed-v2 rules. It is feedback, not a certificate: your teacher has the final word.",
 };
 
 export type Key = keyof typeof en;
@@ -166,6 +185,23 @@ const fr: Dict = {
   tzGreat: "Mémorisation solide", tzGood: "Bien · revoyez les mots en rouge", tzLow: "Reprenez la page avant d'avancer",
   summaryLine: "{judged} mots · {bad} erreurs, gardées pour révision",
   reciteDone: "Récitation vérifiée · {pct} %", recitationCounted: "Comptée comme récitation du jour", nothingJudged: "Rien n'a été reconnu · récitez un peu plus",
+  tajweed: "Tajwid", tjCount: "{n} tajwid", tjSevJali: "Erreur claire", tjSevKhafi: "Point fin", tjMaddHeard: "{name} : {heard}",
+  tjLimits: "Pas encore vérifié : taqlil/imala, ra et lam emphatiques ou légers. Votre enseignant a le dernier mot.",
+  tjMaddShort: "{name} trop court : {heard} au lieu de {want}", tjMaddLong: "{name} trop long : {heard} au lieu de {want}",
+  tjMaddMissing: "{name} oublié : la voyelle doit être allongée", tjMaddAdded: "Une voyelle allongée là où il n'y a pas de madd",
+  tjMaddUneven: "{name} : garde la même longueur à chaque fois ({lens})", tjGhunnahShort: "Ghunna trop courte : tiens le son nasal 2 temps",
+  tjIkhfaIzhar: "Ikhfaʾ : le noun a été prononcé clairement ; il faut le cacher avec la ghunna", tjIkhfaShort: "Ikhfaʾ : la ghunna est trop courte",
+  tjIqlabMissed: "Iqlab : le noun devient un mim caché avec ghunna devant ب", tjIdghamMissed: "Idgham : le noun a été prononcé ; il faut le fondre dans {letter}",
+  tjIdghamGhunnahShort: "Idgham avec ghunna : la ghunna manque", tjShaddaMissing: "La chadda sur {letter} n'a pas été prononcée",
+  tjQalqalahMissing: "Qalqala absente sur {letter} : fais-la rebondir", tjLetter: "{heard} prononcé au lieu de {want}",
+  tjVowel: "Mauvaise voyelle : {heard} au lieu de {want}", tjDropped: "Un son a été omis : {want}", tjAdded: "Un son en trop : {heard}",
+  tjWordMissing: "Ce mot n'a pas été entendu", tjWaqf: "Arrêt sans signe d'arrêt : continue jusqu'au signe ۖ, ou reviens un peu en arrière avant de reprendre",
+  maddNormal: "madd naturel", maddMonfasel: "madd munfasil", maddMottasel: "madd muttasil", maddMottaselPause: "madd muttasil à l'arrêt",
+  maddLazem: "madd lazim", maddAared: "madd ʿarid (à l'arrêt)", maddLeen: "madd lin", maddBadal: "madd badal",
+  maddLeenHamza: "madd lin devant une hamza", vowelA: "a (fatha)", vowelU: "ou (damma)", vowelI: "i (kasra)", countsN: "{n} temps", noMadd: "sans madd",
+  logTajweedReady: "Règles de tajwid chargées ({n} versets)", logTajweedFailed: "Règles de tajwid indisponibles · les mots restent vérifiés",
+  tajweedUnavailable: "Règles de tajwid indisponibles · les mots restent vérifiés", logTajweedLong: "Souffle de plus de 29 s : tajwid non jugé",
+  logTajweedNoData: "Pas de données de tajwid pour ce verset : mots seulement", logTajweedWord: "«{word}» : {n} remarques de tajwid",
 
   logRuntime: "Chargement du moteur", logDownload: "Téléchargement du modèle ({mb} Mo)", logCached: "Modèle trouvé sur l'appareil",
   logCompile: "Compilation du modèle", logReady: "Moteur prêt en {ms} ms", logModelFile: "Utilisation du fichier {name}",
@@ -210,7 +246,7 @@ const fr: Dict = {
   storageBlocked: "Ce navigateur bloque l'enregistrement · votre progression ne sera pas gardée",
   progressDamaged: "Votre progression enregistrée est illisible", progressDamagedHint: "Une copie a été mise de côté. Restaurez un code de sauvegarde dans Réglages, ou recommencez.",
   about: "À propos",
-  aboutText: "Texte et police : Complexe du Roi Fahd (KFGQPC) Warsh v10, numérotation de Warsh. Récitation : Cheikh Mohamed Laghdaf, minutage du projet khatmah. La vérification fonctionne sur l'appareil et juge les mots seulement (manquant, différent, passage similaire), pas le tajwid : votre enseignant a le dernier mot.",
+  aboutText: "Texte et police : Complexe du Roi Fahd (KFGQPC) Warsh v10, numérotation de Warsh. Récitation : Cheikh Mohamed Laghdaf, minutage du projet khatmah. La vérification fonctionne sur l'appareil : les mots (manquant, différent, passage similaire) et le tajwid de Warsh (madd, ghunna, ikhfaʾ, iqlab, idgham, chadda, qalqala, arrêts), avec les règles HisnLabs tajweed-v2. C'est un retour, pas une certification : votre enseignant a le dernier mot.",
 };
 
 const ar: Dict = {
@@ -264,6 +300,23 @@ const ar: Dict = {
   tzGreat: "حفظ متقن", tzGood: "جيد · راجع الكلمات الحمراء", tzLow: "أعد الصفحة قبل الانتقال",
   summaryLine: "{judged} كلمة · {bad} خطأ، حُفظت للمراجعة",
   reciteDone: "تمّ التسميع · {pct}٪", recitationCounted: "حُسب تسميعًا لهذا اليوم", nothingJudged: "لم أتعرّف على شيء · سمّع مدة أطول",
+  tajweed: "التجويد", tjCount: "{n} تجويد", tjSevJali: "لحن جلي", tjSevKhafi: "لحن خفي", tjMaddHeard: "{name}: {heard}",
+  tjLimits: "لا يُفحص بعد: التقليل والإمالة، وتفخيم الراء واللام وترقيقهما. والحكم الأخير لشيخك.",
+  tjMaddShort: "{name}: {heard} بدل {want}", tjMaddLong: "{name}: {heard} بدل {want}",
+  tjMaddMissing: "{name}: المد محذوف", tjMaddAdded: "مد زائد في غير موضعه",
+  tjMaddUneven: "{name}: سوِّ بين المدود ({lens})", tjGhunnahShort: "الغنة ناقصة: أطِل الغنة حركتين",
+  tjIkhfaIzhar: "إخفاء: أظهرتَ النون، والصواب إخفاؤها مع الغنة", tjIkhfaShort: "إخفاء: الغنة قصيرة",
+  tjIqlabMissed: "إقلاب: تُقلب النون ميمًا مخفاة مع الغنة", tjIdghamMissed: "إدغام: أظهرتَ النون، والصواب إدغامها في {letter}",
+  tjIdghamGhunnahShort: "إدغام بغنة: الغنة ناقصة", tjShaddaMissing: "الشدة على {letter} غير ظاهرة",
+  tjQalqalahMissing: "القلقلة غير ظاهرة على {letter}", tjLetter: "نطقتَ {heard} بدل {want}",
+  tjVowel: "الحركة: {heard} بدل {want}", tjDropped: "سقط حرف: {want}", tjAdded: "زيادة: {heard}",
+  tjWordMissing: "لم تُقرأ هذه الكلمة", tjWaqf: "وقفتَ في غير موضع وقف: صِل إلى علامة الوقف ۖ، أو ارجع قليلًا قبل أن تبتدئ",
+  maddNormal: "المد الطبيعي", maddMonfasel: "المد المنفصل", maddMottasel: "المد المتصل", maddMottaselPause: "المد المتصل وقفًا",
+  maddLazem: "المد اللازم", maddAared: "المد العارض للسكون", maddLeen: "مد اللين", maddBadal: "مد البدل",
+  maddLeenHamza: "مد اللين المهموز", vowelA: "فتحة", vowelU: "ضمة", vowelI: "كسرة", countsN: "{n} حركات", noMadd: "بلا مد",
+  logTajweedReady: "حُمّلت أحكام التجويد ({n} آية)", logTajweedFailed: "تعذّر تحميل أحكام التجويد · تُفحص الكلمات فقط",
+  tajweedUnavailable: "أحكام التجويد غير متاحة · تُفحص الكلمات فقط", logTajweedLong: "نفَس أطول من ٢٩ ثانية: لم يُحكم على تجويده",
+  logTajweedNoData: "لا بيانات تجويد لهذه الآية: الكلمات فقط", logTajweedWord: "«{word}»: {n} ملاحظات تجويد",
 
   logRuntime: "أحمّل محرّك التشغيل", logDownload: "أحمّل النموذج ({mb} م.ب)", logCached: "النموذج موجود على الجهاز",
   logCompile: "أجهّز النموذج", logReady: "المحرّك جاهز في {ms} م.ث", logModelFile: "أستعمل الملف {name}",
@@ -308,10 +361,24 @@ const ar: Dict = {
   storageBlocked: "هذا المتصفح يمنع الحفظ · لن يُحفظ تقدّمك",
   progressDamaged: "تعذّرت قراءة تقدّمك المحفوظ", progressDamagedHint: "حُفظت نسخة جانبًا. استرجع رمز نسخة من الإعدادات، أو ابدأ من جديد.",
   about: "عن التطبيق",
-  aboutText: "النص والخط: مجمع الملك فهد لطباعة المصحف الشريف، رواية ورش الإصدار ١٠، بعدّ ورش. التلاوة: الشيخ محمد لغظف، والتوقيت من مشروع khatmah. التسميع يعمل على جهازك ويحكم على الكلمات فقط (الناقصة، والمختلفة، والانتقال إلى متشابه) لا على التجويد: صحّح مع شيخك.",
+  aboutText: "النص والخط: مجمع الملك فهد لطباعة المصحف الشريف، رواية ورش الإصدار ١٠، بعدّ ورش. التلاوة: الشيخ محمد لغظف، والتوقيت من مشروع khatmah. التسميع يعمل على جهازك: الكلمات (الناقصة، والمختلفة، والانتقال إلى متشابه) وتجويد ورش (المد، والغنة، والإخفاء، والإقلاب، والإدغام، والشدة، والقلقلة، والوقف) بأحكام HisnLabs tajweed-v2. هو تنبيه لا إجازة: والحكم الأخير لشيخك.",
 };
 
 const DICTS: Record<Lang, Dict> = { en, fr, ar };
+
+const TJ_TEXT: Record<TajweedKind, Key> = {
+  madd_short: "tjMaddShort", madd_long: "tjMaddLong", madd_missing: "tjMaddMissing", madd_added: "tjMaddAdded", madd_uneven: "tjMaddUneven",
+  ghunnah_short: "tjGhunnahShort", ikhfa_izhar: "tjIkhfaIzhar", ikhfa_short: "tjIkhfaShort", iqlab_missed: "tjIqlabMissed",
+  idgham_missed: "tjIdghamMissed", idgham_ghunnah_short: "tjIdghamGhunnahShort", shadda_missing: "tjShaddaMissing",
+  qalqalah_missing: "tjQalqalahMissing", letter: "tjLetter", vowel: "tjVowel", dropped: "tjDropped", added: "tjAdded",
+  word_missing: "tjWordMissing", waqf: "tjWaqf",
+};
+const MADD_NAME: Record<string, Key> = {
+  NormalMaddRule: "maddNormal", MonfaselMaddRule: "maddMonfasel", MottaselMaddRule: "maddMottasel", MottaselMaddPauseRule: "maddMottaselPause",
+  LazemMaddRule: "maddLazem", AaredMaddRule: "maddAared", LeenMaddRule: "maddLeen", BadalMadd: "maddBadal", LeenHamzaMadd: "maddLeenHamza",
+};
+const VOWEL_NAME: Record<string, Key> = { "َ": "vowelA", "ُ": "vowelU", "ِ": "vowelI" };
+const COUNTS_AR: Record<number, string> = { 2: "حركتان", 3: "ثلاث حركات", 4: "أربع حركات", 5: "خمس حركات", 6: "ست حركات" };
 const AR_DIGITS = "٠١٢٣٤٥٦٧٨٩";
 
 export const dirOf = (lang: Lang): "rtl" | "ltr" => (lang === "ar" ? "rtl" : "ltr");
@@ -330,7 +397,18 @@ export function translator(lang: Lang) {
   };
   const pages = (list: number[]) =>
     pageRuns(list).map(([a, b]) => (a === b ? t("pageOne", { a }) : t("pagesRange", { a, b }))).join(lang === "ar" ? "، " : ", ");
-  return { t, n, sura, thumnNo, where, pages, lang, dir: dirOf(lang) };
+  /** a madd length as a teacher says it: «ست حركات», "6 counts", "6 temps" */
+  const counts = (x: number) => (!x ? t("noMadd") : lang === "ar" && COUNTS_AR[x] ? COUNTS_AR[x] : t("countsN", { n: x }));
+  const maddName = (rule: string) => t(MADD_NAME[rule] ?? "maddNormal");
+  /** one tajweed remark in this language */
+  const tajweedText = ({ kind, vars: v }: TajweedNote) => {
+    const name = maddName(String(v.rule ?? ""));
+    if (kind === "madd_short" || kind === "madd_long") return t(TJ_TEXT[kind], { name, heard: counts(+v.heard), want: counts(+v.want) });
+    if (kind === "madd_missing" || kind === "madd_uneven") return t(TJ_TEXT[kind], { name, lens: n(String(v.lens ?? "")) });
+    if (kind === "vowel") return t("tjVowel", { heard: t(VOWEL_NAME[v.heard] ?? "vowelA"), want: t(VOWEL_NAME[v.want] ?? "vowelA") });
+    return t(TJ_TEXT[kind], { letter: String(v.letter ?? ""), heard: String(v.heard ?? ""), want: String(v.want ?? "") });
+  };
+  return { t, n, sura, thumnNo, where, pages, counts, maddName, tajweedText, lang, dir: dirOf(lang) };
 }
 
 const cache = new Map<Lang, ReturnType<typeof translator>>();

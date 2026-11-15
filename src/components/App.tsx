@@ -75,7 +75,8 @@ function PracticeRun() {
 
 function Shell() {
   const tab = ui.use((s) => s.tab);
-  const bars = ui.use((s) => s.chrome || s.tab !== "mushaf");
+  // the tab bar steps aside while reading full-screen, memorizing or reciting (focus modes)
+  const bars = ui.use((s) => s.tab !== "mushaf" || (s.chrome && s.mode === "read"));
   return (
     <div className="flex h-dvh flex-col">
       <main className="relative min-h-0 flex-1">

@@ -1,7 +1,8 @@
 /* Recognition worker: audio in, judged words out (tasmee3), or the verses that best match what was recited (find).
    Runs the Warsh-capable phoneme model (HisnLabs tajweed-v2, int8 ONNX, Apache-2.0) with onnxruntime-web, on device.
-   Every stage reports itself (model, runtime, steps, errors) so the page can show the whole pipeline live. */
-importScripts("dsp.js", "tracker.js");
+   Every stage reports itself (model, runtime, steps, errors) so the page can show the whole pipeline live.
+   Each breath is also judged for tajweed once the reciter pauses (tajweed.js, Warsh rules). */
+importScripts("dsp.js", "tracker.js", "tajweed.js");
 
 const ORT_VER = "1.24.2";
 const ORT_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VER}/dist/`;
@@ -11,11 +12,14 @@ const MODEL_SIZE = 23e6;
 const STEP_EVERY = 0.22;   // seconds of new audio between two judgments
 const WINDOW_MAX = 12;     // seconds of audio the model looks at, at most
 const { Stream, Resampler } = self.TasmeeDSP;
-const { Tracker, canonHeard, MODEL_MAP, wordKeyAt, SUB, NSYM } = self.TasmeeTracker;
+const { Tracker, canonHeard, MODEL_MAP, MODEL_PHONEMES, wordKeyAt, SUB, NSYM } = self.TasmeeTracker;
+const { Tajweed } = self;
 
 let session = null, stream = null, tracker = null, resampler = null;
 let running = false, busy = false, finalPending = false, findMode = false;
 let voiceEnd = 0, talking = false, noise = 0.003, lastRunAt = -1, inferMs = 0;
+let breathStart = 0;       // when the current breath began (voice after a silence of BREATH_GAP)
+const BREATH_GAP = 0.45;
 
 const post = (type, data = {}) => self.postMessage(Object.assign({ type }, data));
 /** an error that knows which stage failed */
@@ -71,7 +75,8 @@ async function initModel(given) {
   } catch (e) { throw stageError("compile", e); }
   post("model", { phase: "ready", cached, ms: Math.round(performance.now() - t0), threads: ort.env.wasm.numThreads });
 }
-async function infer(st, t0, t1) {
+/** the model's best path over [t0, t1]: symbols with their time and confidence (those below minP left out) */
+async function infer(st, t0, t1, minP = 0.25) {
   const seg = st.segment(t0, t1, 0.4);
   if (seg.T < 20) return [];
   const started = performance.now();
@@ -86,7 +91,7 @@ async function infer(st, t0, t1) {
     for (let v = 0; v < V; v++) if (d[o + v] > bv) { bv = d[o + v]; bi = v; }
     if (bi !== prev && bi !== 0) {
       const p = Math.exp(bv);
-      if (p >= 0.25) syms.push({ c: MODEL_MAP[bi] || 0, t: seg.start + (2 * t + 1) * 0.01, p, id: bi });
+      if (p >= minP) syms.push({ c: MODEL_MAP[bi] || 0, t: seg.start + (2 * t + 1) * 0.01, p, id: bi });
     }
     prev = bi;
   }
@@ -103,7 +108,8 @@ function vad(x, tEnd) {
     noise = rms < noise ? 0.9 * noise + 0.1 * rms : 0.999 * noise + 0.001 * rms;
     const on = rms > Math.max(0.006, noise * 3.2);
     const t = tEnd - (x.length - i - B) / 16000;
-    if (on) { talking = true; voiceEnd = t; } else if (t - voiceEnd > 0.12) talking = false;
+    if (on) { if (t - voiceEnd >= BREATH_GAP) breathStart = t - B / 16000; talking = true; voiceEnd = t; }
+    else if (t - voiceEnd > 0.12) talking = false;
   }
 }
 
@@ -113,18 +119,76 @@ async function step(final = false) {
   busy = true;
   try {
     const now = stream.seconds;
-    if (!final && voiceEnd < tracker.anchor) { lastRunAt = now; busy = false; post("tick", { seconds: now, voice: talking }); return; } // nothing new was said
+    if (!final && voiceEnd < tracker.anchor) {   // nothing new was said: everything heard is judged
+      // a pause after a fully judged breath closes it: its words are heard again for tajweed
+      if (!talking && now - voiceEnd >= tracker.opts.pause && tracker.cursor > judged) await closeBreath(false);
+      lastRunAt = now; busy = false; post("tick", { seconds: now, voice: talking }); return;
+    }
     const a = Math.max(0, tracker.anchor - 0.6, now - WINDOW_MAX);
     const heard = canonHeard((await infer(stream, a, now)).filter(s => s.t > tracker.anchor));
     const r = final ? tracker.finish(heard, now) : tracker.update(heard, now, talking ? now : voiceEnd);
     lastRunAt = now;
     post("update", { commits: r.commits.map(c => ({ k: c.k, st: tracker.status[c.k], info: tracker.info[c.k] })), tentative: r.tentative,
       current: tracker.cursor, lost: !!r.lost, done: tracker.cursor >= tracker.words.length, final, seconds: now, voice: talking, inferMs });
+    // the end of the session, or a long pause with sounds left unmatched, also closes the breath
+    if (tracker.cursor > judged && (final || (!talking && now - voiceEnd >= LONG_PAUSE))) await closeBreath(final);
   } catch (e) { post("error", { where: "step", msg: String(e && e.message || e) }); }
   busy = false;
   if (finalPending && !final) { finalPending = false; await step(true); }
 }
 
+/* ---------- tajweed: each breath against the expected Warsh tajweed of its words ---------- */
+let tajweedData = null, judged = 0, tempo = [];   // judged: first word not judged yet; tempo: natural madds heard (pace)
+let heardUntil = 0;        // end of the audio already judged: a breath never reaches back into it
+const LONG_PAUSE = 2.5;
+function loadTajweed() {
+  tajweedData ||= fetch("../data/tajweed.json")
+    .then(r => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+    .then(d => { Tajweed.load(d); post("tajweedData", { ok: true, verses: d.verses.filter(Boolean).length }); })
+    .catch(e => { tajweedData = null; post("tajweedData", { ok: false, msg: String(e && e.message || e) }); });
+  return tajweedData;
+}
+const BREATH_MAX = 29;  // seconds the model can hear at once
+
+async function closeBreath(final) {
+  const from = judged;
+  judged = tracker.cursor;
+  await judgeBreath(from, judged - 1, final);
+}
+
+/** words from..to (one breath, possibly over several verses): the breath's audio, from where the voice began to where
+    it ended, cut only between verses, is heard again with every symbol and judged verse by verse */
+async function judgeBreath(from, to, final) {
+  if (!Tajweed.ready()) return;
+  const W = tracker.words, info = tracker.info, timed = (x) => info[x] && info[x].t0 != null && info[x].t1 != null;
+  const groups = [];   // one verse each: [first word, last word, first timed info, last timed info]
+  for (let k = from; k <= to;) {
+    let e = k;
+    while (e < to && W[e + 1].verse === W[k].verse) e++;
+    const ts = [];
+    for (let x = k; x <= e; x++) if (timed(x)) ts.push(info[x]);
+    groups.push([k, e, ts[0], ts[ts.length - 1]]);
+    k = e + 1;
+  }
+  for (let g = 0; g < groups.length; g++) {
+    const [k, e, first, last] = groups[g];
+    const ref = first ? Tajweed.reference(W[k].verse, W[k].wi, W[e].wi) : null;
+    if (!ref) { post("tajweedSkipped", { reason: first ? "data" : "silent", k }); continue; }
+    const prev = groups[g - 1], next = groups[g + 1];
+    const t0 = prev && prev[3] ? (prev[3].t1 + first.t0) / 2 : Math.max(heardUntil, Math.min(breathStart, first.t0) - 0.2);
+    const t1 = next && next[2] ? (last.t1 + next[2].t0) / 2 : Math.min(stream.seconds, Math.max(voiceEnd, last.t1) + 0.25);
+    heardUntil = Math.max(heardUntil, t1);
+    if (t1 - t0 > BREATH_MAX) { post("tajweedSkipped", { reason: "long", k }); continue; }
+    const syms = await infer(stream, t0, t1, 0);
+    const heard = syms.map(s => MODEL_PHONEMES[s.id - 1]).join("");
+    const times = syms.map(s => s.t);
+    times.push(syms.length ? syms[syms.length - 1].t + 0.01 : t1);
+    // stopping the session mid-verse is not a waqf mistake
+    const words = Tajweed.listen(ref, heard, syms.map(s => s.p), times, tempo)
+      .map((w, i) => ({ k: k + i, notes: final ? w.notes.filter(n => n.kind !== "waqf") : w.notes, madd: w.madd }));
+    post("tajweed", { words, ms: inferMs });
+  }
+}
 /* ---------- find: which verses sound like what was recited ---------- */
 let index = null;                         // { codes: consonants of the whole text, verseAt: verse of each code }
 async function buildIndex() {
@@ -167,6 +231,8 @@ self.onmessage = async ({ data: m }) => {
       findMode = !!m.find;
       stream = new Stream(); resampler = new Resampler(m.sampleRate || 16000);
       tracker = findMode ? null : new Tracker(m.words, m.opts || {});
+      judged = 0; tempo = []; heardUntil = 0; breathStart = 0;
+      if (!findMode) loadTajweed();
       running = true; voiceEnd = 0; talking = false; noise = 0.003; lastRunAt = -1;
       if (findMode) buildIndex();                          // warm the index while the user recites
       post("started", {});
@@ -178,7 +244,7 @@ self.onmessage = async ({ data: m }) => {
       if (findMode) { lastRunAt = stream.seconds; post("tick", { seconds: stream.seconds, voice: talking }); }
       else step();
     }
-    else if (m.type === "jump" && tracker) { tracker.cursor = m.k; tracker.anchor = stream ? stream.seconds : 0; }
+    else if (m.type === "jump" && tracker) { tracker.cursor = m.k; tracker.anchor = stream ? stream.seconds : 0; judged = Math.min(judged, m.k); }
     else if (m.type === "opts" && tracker) Object.assign(tracker.opts, m.opts);
     else if (m.type === "stop" && running) {
       running = false;
