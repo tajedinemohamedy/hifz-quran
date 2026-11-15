@@ -43,3 +43,4 @@ scripts/extract-data.mjs   re-imports data, font and engine from the original si
 
 Progress is stored in the browser under `hifz_app_v1`, in the same format as the original app's backup
 code, so old backup codes restore here.
+
