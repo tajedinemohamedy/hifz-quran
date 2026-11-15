@@ -9,7 +9,8 @@ import { dayPlan, markToday } from "@/lib/plan";
 import { endPractice, startPractice } from "@/lib/practice";
 import { goTab } from "@/lib/ui";
 import { shuffle } from "@/lib/quiz";
-import { Button, Feedback, Option, Session } from "../ui";
+import { Button } from "@/components/ui/button";
+import { Choice, Session, Verdict } from "../kit";
 import { GroupCard, Occurrence as Place, StarButton } from "../MutGroup";
 
 interface Item { occ: Occurrence; first: boolean }
@@ -45,24 +46,24 @@ export function MutRun({ list }: { list: Occurrence[] }) {
   };
 
   return (
-    <Session onEnd={() => setEnded(true)} endLabel={t("end")} progress={run.done / run.total}
+    <Session onClose={() => setEnded(true)} progress={run.done / run.total}
       label={`${t("ofTotal", { a: run.done, b: run.total })} · ${t("run", { n: run.streak })}${item.first ? "" : " · " + t("repeated")}`}>
       <div className="flex flex-col gap-3">
-        <div className="text-[12px] text-muted">{where(x.verse)}</div>
-        <div className="quran rounded-2xl bg-surface p-4 text-[23px] leading-[2]" dir="rtl">
-          {prev && <div className="text-[19px] text-muted">{prev.length > 6 ? "… " : ""}{prev.slice(-6).join(" ")}</div>}
-          {w.slice(0, x.at).join(" ")} <mark className="rounded bg-gold-soft px-1 text-inherit">{w.slice(x.at, x.at + x.len).join(" ")}</mark> …
+        <div className="text-[12px] text-muted-foreground">{where(x.verse)}</div>
+        <div className="quran rounded-2xl bg-card p-4 text-[23px] leading-[2]" dir="rtl">
+          {prev && <div className="text-[19px] text-muted-foreground">{prev.length > 6 ? "… " : ""}{prev.slice(-6).join(" ")}</div>}
+          {w.slice(0, x.at).join(" ")} <mark className="rounded bg-warning-soft px-1 text-inherit">{w.slice(x.at, x.at + x.len).join(" ")}</mark> …
         </div>
         <div className="text-[17px] font-semibold">{t("whatFollows")}</div>
         {x.opts.map((o, k) => (
-          <Option key={k} disabled={answer != null} onClick={() => choose(k)} state={answer == null ? undefined : o.ok ? "ok" : answer === k ? "no" : undefined}>{o.text} …</Option>
+          <Choice key={k} disabled={answer != null} onClick={() => choose(k)} state={answer == null ? undefined : o.ok ? "right" : answer === k ? "wrong" : undefined}>{o.text} …</Choice>
         ))}
         {answer != null && (
           <>
-            <Feedback ok={x.opts[answer].ok}>{x.opts[answer].ok ? t("correct") : t("wrongBack")}</Feedback>
-            <div className="flex items-center justify-between"><span className="text-[13px] text-muted">{t("allPlaces", { n: g.o.length })}</span><StarButton group={x.group} /></div>
+            <Verdict right={x.opts[answer].ok}>{x.opts[answer].ok ? t("correct") : t("wrongBack")}</Verdict>
+            <div className="flex items-center justify-between"><span className="text-[13px] text-muted-foreground">{t("allPlaces", { n: g.o.length })}</span><StarButton group={x.group} /></div>
             {g.o.map((o, k) => <Place key={k} o={o} current={k === x.occ} />)}
-            <Button tone="primary" onClick={() => { setAnswer(null); setRun(advance); }}>{t("next")}</Button>
+            <Button size="lg" className="h-12 rounded-xl" onClick={() => { setAnswer(null); setRun(advance); }}>{t("next")}</Button>
           </>
         )}
       </div>
@@ -80,20 +81,20 @@ function MutEnd({ run, list }: { run: Run; list: Occurrence[] }) {
     if (dayPlan().restDay) markToday("quiz");
   }, [complete, run.total, pct]);
   return (
-    <Session onEnd={endPractice} endLabel={t("close")} label={t("mutTab")} progress={1}>
-      <div className="rounded-3xl bg-surface p-6 text-center">
+    <Session onClose={endPractice} label={t("mutTab")} progress={1}>
+      <div className="rounded-3xl bg-card p-6 text-center">
         <div className="text-6xl font-bold tabular-nums">{t("percent", { n: pct })}</div>
-        <div className="mt-1 text-[13px] text-muted">{t("firstTry", { a: run.ok1, b: run.done })}</div>
+        <div className="mt-1 text-[13px] text-muted-foreground">{t("firstTry", { a: run.ok1, b: run.done })}</div>
       </div>
       {run.missed.length > 0 && (
         <>
-          <h3 className="mb-2 mt-6 text-[13px] font-semibold text-muted">{t("missedPhrases")}</h3>
+          <h3 className="mb-2 mt-6 text-[13px] font-semibold text-muted-foreground">{t("missedPhrases")}</h3>
           <div className="flex flex-col gap-2">{run.missed.map((gi) => <GroupCard key={gi} group={gi} open />)}</div>
         </>
       )}
       <div className="mt-5 flex gap-2">
-        <Button tone="primary" onClick={() => startPractice({ mut: shuffle(list) })}>{t("newRound")}</Button>
-        <Button onClick={() => { endPractice(); goTab("today"); }}>{t("home")}</Button>
+        <Button size="lg" className="h-12 flex-1 rounded-xl" onClick={() => startPractice({ mut: shuffle(list) })}>{t("newRound")}</Button>
+        <Button size="lg" variant="secondary" className="h-12 flex-1 rounded-xl" onClick={() => { endPractice(); goTab("today"); }}>{t("home")}</Button>
       </div>
     </Session>
   );

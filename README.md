@@ -14,15 +14,21 @@ npm run build      # static site in ./out (deploy anywhere; https is needed for 
 
 ## Three tabs
 
-- **Today**: daily plan (new page, recent review of the last 7 pages, rotating old review, daily quiz),
-  reading/recitation counters, the 60-hizb map and a 4-week calendar.
-- **Mushaf**: 604 pages swiped right-to-left. Listen (Sheikh Mohamed Laghdaf, with ayah and word highlighting
-  and auto page-follow). Read / Hint / Hide modes. **Recite** checks a recitation word by word with the
-  on-device model. Tap a verse to listen, mark it weak, bookmark it, copy it, or see its mutashabihat.
-- **Practice**: memorization quiz (hizb, thumn, pages, or your mistakes) and mutashabihat rounds/browser.
+- **Today**: progress at a glance, then the day's tasks (new page, recent review, long review, quiz),
+  each with one action. Tap the progress card for the 60-hizb map, the calendar and mastery scores.
+- **Mushaf**: 604 pages swiped right-to-left. The dock shows three actions and turns into the active one:
+  **Listen** (Sheikh Mohamed Laghdaf, ayah + word highlighting, the page follows), **Memorize** (tap a
+  verse: first word, then all of it), **Recite** (the on-device model checks the page word by word, live).
+  Tap the surah title to search or jump; tap a verse to listen, mark it for review, copy it or see similar passages.
+- **Practice**: recent-pages quiz, your mistakes, and similar phrases. Other ranges and browsing open in sheets.
 
-Search (header) covers surahs, juz, bookmarks, `page`, `surah:aya` (Warsh numbering), words without
-diacritics, and **recite to find**, which locates a verse from a few seconds of recitation.
+## Design system
+
+- shadcn/ui (Radix, RTL) + one token set in `src/app/globals.css` (shadcn names plus `paper` and `warning`).
+- `src/components/kit.tsx`: the app's composites (Sheet on Vaul, Segmented, Row, Card, Session, Choice…).
+- `src/lib/notify.ts`: every success and failure goes through Sonner (top, swipeable in all directions).
+- The recognition pipeline (`src/lib/recognition.ts` + `public/engine/worker.js`) publishes each stage
+  (engine download/compile, microphone, voice, step time) and an activity log; `EngineStatus.tsx` shows it.
 
 ## Structure
 
@@ -30,8 +36,8 @@ diacritics, and **recite to find**, which locates a verse from a few seconds of 
 public/data      quran.json (KFGQPC Warsh v10 verses, thumns, juz), mut.json (mutashabihat)
 public/fonts     warsh10.woff2
 public/engine    dsp.js + tracker.js (shared by page and worker), worker.js (ONNX model, tasmee3 + find)
-src/lib          one module per domain: quran, prefs, plan, audio, recognition, recite, quiz, mut, search, ui, i18n
-src/components   App shell, reader/, today/, practice/, shared ui
+src/lib          one module per domain: quran, prefs, plan, audio, recognition, recite, quiz, mut, search, ui, i18n, notify
+src/components   App shell, kit, reader/, today/, practice/, ui/ (shadcn)
 scripts/extract-data.mjs   re-imports data, font and engine from the original single-file hifz app
 ```
 

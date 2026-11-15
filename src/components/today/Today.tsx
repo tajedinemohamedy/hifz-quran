@@ -1,81 +1,52 @@
 "use client";
-/* Today: the plan for the day and the progress behind it, in one scroll. */
+/* Today: how far you are, and the day's few tasks, each with one action. */
 import { useState, type ReactNode } from "react";
-import { useT } from "@/lib/i18n";
+import { Check, ChevronRight, Flame, Minus, Plus, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useT, type Key } from "@/lib/i18n";
 import { prefs, todayISO, type TaskId } from "@/lib/prefs";
-import { bumpCounter, dayDone, dayPlan, setNextPage, streak, toggleTask } from "@/lib/plan";
-import { HIZBS, PAGES, hizbPages, pageOfVerse, pageParts, range } from "@/lib/quran";
-import { openReader } from "@/lib/ui";
+import { bumpCounter, dayPlan, streak, toggleTask } from "@/lib/plan";
+import { PAGES, pageOfVerse, pageParts, range } from "@/lib/quran";
+import { openReader, ui, type ReaderMode } from "@/lib/ui";
 import { startPractice } from "@/lib/practice";
 import { occurrences } from "@/lib/mut";
 import { shuffle } from "@/lib/quiz";
-import { Icon } from "../icons";
-import { Bar, Button, Card, SectionTitle } from "../ui";
+import { notify } from "@/lib/notify";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Card, PageTitle, Section } from "../kit";
+import { ProgressSheet } from "./ProgressSheet";
 
-function Task({ id, title, meta, children }: { id: TaskId; title: ReactNode; meta: ReactNode; children?: ReactNode }) {
+function Task({ id, title, meta, action, onAction, children }: { id: TaskId; title: string; meta: ReactNode; action: string; onAction: () => void; children?: ReactNode }) {
   const done = prefs.use((s) => !!s.log[todayISO()]?.[id]);
+  const toggle = () => { if (!done) notify.success("taskDone", { task: title }, "task"); toggleTask(id); };
   return (
-    <Card className={`flex gap-3 transition-opacity ${done ? "opacity-60" : ""}`}>
-      <button onClick={() => toggleTask(id)} aria-pressed={done} aria-label={String(title)}
-        className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border-2 transition-colors ${done ? "border-accent bg-accent text-on-accent" : "border-line"}`}>
-        {done && <Icon name="check" className="size-4" />}
+    <Card className={cn("flex gap-3 transition-opacity duration-300", done && "opacity-55")}>
+      <button onClick={toggle} aria-pressed={done} aria-label={title}
+        className={cn("mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border-2 transition-all duration-300", done ? "scale-100 border-primary bg-primary text-primary-foreground" : "border-input")}>
+        <Check className={cn("size-4 transition-transform duration-300", done ? "scale-100" : "scale-0")} strokeWidth={3} />
       </button>
       <div className="min-w-0 flex-1">
         <div className="text-[16px] font-semibold">{title}</div>
-        <div className="text-[13px] text-muted">{meta}</div>
-        {children && <div className="mt-3 flex flex-wrap gap-2">{children}</div>}
+        <div className="text-[13px] text-muted-foreground">{meta}</div>
+        {children}
       </div>
+      <Button variant="secondary" size="sm" className="self-center rounded-full" onClick={onAction}>
+        {action}<ChevronRight className="rtl:-scale-x-100" />
+      </Button>
     </Card>
   );
 }
 
-function Counter({ k, label }: { k: "reads" | "recites"; label: string }) {
-  const { n } = useT();
+function Counter({ k, label }: { k: "reads" | "recites"; label: Key }) {
+  const { t, n } = useT();
   const v = prefs.use((s) => s.log[todayISO()]?.[k] || 0);
   return (
-    <div>
-      <div className="text-[12px] text-muted">{label}</div>
-      <div className="mt-1 flex items-center gap-2">
-        <Button small onClick={() => bumpCounter(k, -1)} aria-label="−"><Icon name="minus" className="size-4" /></Button>
-        <span className="min-w-8 text-center text-[24px] font-bold tabular-nums">{n(v)}</span>
-        <Button small tone="primary" onClick={() => bumpCounter(k, 1)} aria-label="+"><Icon name="plus" className="size-4" /></Button>
-      </div>
-    </div>
-  );
-}
-
-function ConfirmPage({ page }: { page: number }) {
-  const { t, n, sura } = useT();
-  const [p, setP] = useState(page);
-  return (
-    <Card className="mt-3 ring-2 ring-accent/30">
-      <div className="font-semibold">{t("confirmAsk")}</div>
-      <p className="text-[13px] text-muted">{t("confirmHint")}</p>
-      <div className="mt-3 flex items-center gap-2">
-        <input type="number" min={2} max={PAGES} value={p} onChange={(e) => setP(+e.target.value || 2)} aria-label={t("nextPage")}
-          className="h-11 w-24 rounded-xl bg-surface-2 px-3 text-center text-[17px] font-semibold tabular-nums outline-none" />
-        <Button tone="primary" onClick={() => setNextPage(p)}>{t("confirm")}</Button>
-      </div>
-      <p className="mt-2 text-[12px] text-muted">{pageParts(Math.min(PAGES, Math.max(1, p))).map((x) => `${sura(x.s)} ${n(x.from)}–${n(x.to)}`).join(" · ")}</p>
-    </Card>
-  );
-}
-
-function Calendar() {
-  const { n } = useT();
-  const S = prefs.use((s) => s);
-  const d = new Date(); d.setDate(d.getDate() - 27);
-  const days = range(0, 27).map(() => { const iso = todayISO(d), day = d.getDate(); d.setDate(d.getDate() + 1); return { iso, day }; });
-  return (
-    <div className="grid grid-cols-7 gap-1.5">
-      {days.map(({ iso, day }) => {
-        const L = S.log[iso] || {}, some = (["new", "recent", "old", "quiz", "week"] as const).some((x) => L[x]);
-        return (
-          <div key={iso} title={iso} className={`grid aspect-square place-items-center rounded-lg text-[11px] tabular-nums ${dayDone(S, iso) ? "bg-accent text-on-accent" : some ? "bg-accent-soft text-accent" : "bg-surface-2 text-muted"} ${iso === todayISO() ? "ring-2 ring-gold" : ""}`}>
-            {n(day)}
-          </div>
-        );
-      })}
+    <div className="flex items-center gap-1.5 rounded-full bg-muted py-0.5 pe-0.5 ps-3 text-[12px]">
+      <span className="text-muted-foreground">{t(label)}</span>
+      <b className="min-w-4 text-center tabular-nums">{n(v)}</b>
+      <button aria-label="−" onClick={() => bumpCounter(k, -1)} className="grid size-6 place-items-center rounded-full bg-background active:scale-90"><Minus className="size-3" /></button>
+      <button aria-label="+" onClick={() => bumpCounter(k, 1)} className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground active:scale-90"><Plus className="size-3" /></button>
     </div>
   );
 }
@@ -83,83 +54,56 @@ function Calendar() {
 export function Today() {
   const { t, n, sura, pages, lang } = useT();
   const S = prefs.use((s) => s);
+  const [progressOpen, setProgressOpen] = useState(false);
   const P = dayPlan(S);
-  const pct = Math.round((100 * P.known) / PAGES);
   const date = new Date().toLocaleDateString(lang === "ar" ? "ar-MA" : lang, { weekday: "long", day: "numeric", month: "long" });
-  const newLabel = pageParts(P.newPage).map((x) => `${sura(x.s)} ${n(x.from)}–${n(x.to)}`).join(" · ");
+  const days = streak(S);
+  const open = (page: number, mode: ReaderMode = "read") => () => openReader({ page }, mode);
   const weekFrom = Math.max(1, P.known - 5);
-  const nWeak = Object.keys(S.weak).length;
-  const hz = (h: number) => { const [a, b] = hizbPages(h); return b <= P.known ? "bg-accent text-on-accent" : a <= P.known + 1 ? "bg-gold-soft text-gold ring-1 ring-gold" : "bg-surface-2 text-muted"; };
 
   return (
-    <div className="mx-auto max-w-xl px-4 pb-28">
-      <h1 className="pt-2 text-[28px] font-bold leading-tight">{date}</h1>
-      <p className="text-[14px] text-muted">{t("memorizedRange", { n: P.known, j: n((P.known / 20).toFixed(1).replace(".0", "")) })}</p>
+    <div className="mx-auto max-w-xl px-4 pb-8">
+      <PageTitle subtitle={date} title={t("tabToday")}
+        end={<Button variant="ghost" size="icon" className="rounded-full" aria-label={t("settings")} onClick={() => ui.set({ overlay: "settings" })}><Settings className="size-5" /></Button>} />
 
-      <Card className="mt-4">
-        <div className="grid grid-cols-3 text-center">
-          {[[n(P.known), t("pagesKnown")], [t("percent", { n: pct }), t("ofMushaf")], [n(streak(S)), t("dayStreak")]].map(([v, l]) => (
-            <div key={l}><b className="block text-[22px] tabular-nums">{v}</b><span className="text-[12px] text-muted">{l}</span></div>
-          ))}
-        </div>
-        <div className="mt-3"><Bar value={P.known / PAGES} /></div>
-      </Card>
-
-      {!S.confirmed && <ConfirmPage page={P.newPage} />}
-
-      <SectionTitle>{P.restDay ? t("restDay") : t("tasksToday")}</SectionTitle>
-      <div className="flex flex-col gap-2.5">
-        {P.restDay ? (
-          <Task id="week" title={t("taskWeek")} meta={t("taskWeekMeta", { pages: pages(range(weekFrom, P.known)) })}>
-            <Button small onClick={() => openReader({ page: weekFrom }, "hide")}>{t("reciteHidden")}</Button>
-            <Button small onClick={() => openReader({ page: weekFrom }, "recite")}><Icon name="mic" className="size-4" />{t("reciteMic")}</Button>
-            <Button small onClick={() => startPractice({ quiz: { kind: "pages", a: weekFrom, b: P.known }, mode: "full" })}>{t("modeFull")}</Button>
-          </Task>
-        ) : (
-          <Task id="new" title={t("taskNew", { n: P.newPage })} meta={newLabel}>
-            <div className="flex w-full gap-6"><Counter k="reads" label={t("reads")} /><Counter k="recites" label={t("recites")} /></div>
-            <Button small onClick={() => openReader({ page: P.newPage })}><Icon name="book" className="size-4" />{t("read")}</Button>
-            <Button small onClick={() => openReader({ page: P.newPage }, "hide")}><Icon name="eye" className="size-4" />{t("reciteHidden")}</Button>
-            <Button small onClick={() => openReader({ page: P.newPage }, "recite")}><Icon name="mic" className="size-4" />{t("reciteMic")}</Button>
-          </Task>
-        )}
-        {P.known >= 1 && (
-          <Task id="recent" title={t("taskRecent")} meta={t("taskRecentMeta", { pages: pages(range(P.recent[0], P.recent[1])) })}>
-            <Button small onClick={() => openReader({ page: P.recent[0] }, "hide")}>{t("reciteHidden")}</Button>
-          </Task>
-        )}
-        {P.old && (
-          <Task id="old" title={t("taskOld")} meta={t("taskOldMeta", { pages: pages(P.old) })}>
-            <Button small onClick={() => openReader({ page: P.old![0] }, "hide")}>{t("reciteHidden")}</Button>
-          </Task>
-        )}
-        {P.known >= 1 && (
-          <Task id="quiz" title={t("taskQuiz")} meta={P.restDay ? t("taskQuizRest") : t("taskQuizMeta", { n: P.known })}>
-            <Button small tone="primary" onClick={() => startPractice(P.restDay ? { mut: shuffle(occurrences((v) => pageOfVerse(v) <= P.known)).slice(0, 15) } : { quiz: { kind: "pages", a: P.known, b: P.known }, mode: "mix" })}>{t("start")}</Button>
-          </Task>
-        )}
-      </div>
-
-      {nWeak > 0 && (
-        <Card className="mt-3 flex items-center justify-between gap-3">
-          <div><div className="font-semibold">{t("weakTitle", { n: nWeak })}</div><div className="text-[13px] text-muted">{t("weakMeta")}</div></div>
-          <Button small tone="primary" onClick={() => startPractice({ quiz: { kind: "weak" }, mode: "mix" })}>{t("test")}</Button>
+      <button onClick={() => setProgressOpen(true)} className="block w-full text-start transition-transform active:scale-[0.99]">
+        <Card>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <b className="text-[34px] font-bold leading-none tabular-nums">{n(P.known)}</b>
+              <span className="ms-1.5 text-[13px] text-muted-foreground">{t("pagesOf", { n: PAGES })}</span>
+            </div>
+            <span className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold", days ? "bg-warning-soft text-warning" : "bg-muted text-muted-foreground")}>
+              <Flame className="size-3.5" />{days ? t("streak", { n: days }) : t("streakStart")}
+            </span>
+          </div>
+          <Progress className="mt-3" value={(100 * P.known) / PAGES} />
+          <div className="mt-2 flex justify-between text-[12px] text-muted-foreground">
+            <span>{t("juzApprox", { j: n((P.known / 20).toFixed(1).replace(".0", "")) })}</span>
+            <span className="flex items-center gap-0.5">{t("seeProgress")}<ChevronRight className="size-3.5 rtl:-scale-x-100" /></span>
+          </div>
         </Card>
-      )}
-      <p className="mt-4 border-s-2 border-gold ps-3 text-[13px] text-muted">{t("tip")}</p>
+      </button>
 
-      <SectionTitle>{t("hizbMap")}</SectionTitle>
-      <Card>
-        <div className="grid grid-cols-10 gap-1">
-          {range(1, HIZBS).map((h) => (
-            <button key={h} onClick={() => openReader({ page: hizbPages(h)[0] })} className={`grid aspect-square place-items-center rounded-md text-[10.5px] tabular-nums ${hz(h)}`}>{n(h)}</button>
-          ))}
+      <Section title={P.restDay ? t("restDay") : t("tasksToday")}>
+        <div className="flex flex-col gap-2.5">
+          {P.restDay ? (
+            <Task id="week" title={t("taskWeek")} meta={pages(range(weekFrom, P.known))} action={t("open")} onAction={open(weekFrom, "memorize")} />
+          ) : (
+            <Task id="new" title={t("taskNew", { n: P.newPage })} meta={pageParts(P.newPage).map((x) => `${sura(x.s)} ${n(x.from)}–${n(x.to)}`).join(" · ")} action={t("open")} onAction={open(P.newPage)}>
+              <div className="mt-2.5 flex flex-wrap gap-2"><Counter k="reads" label="reads" /><Counter k="recites" label="recites" /></div>
+            </Task>
+          )}
+          {P.known >= 1 && <Task id="recent" title={t("taskRecent")} meta={pages(range(P.recent[0], P.recent[1]))} action={t("open")} onAction={open(P.recent[0], "memorize")} />}
+          {P.old && <Task id="old" title={t("taskOld")} meta={pages(P.old)} action={t("open")} onAction={open(P.old[0], "memorize")} />}
+          {P.known >= 1 && (
+            <Task id="quiz" title={t("taskQuiz")} meta={P.restDay ? t("taskQuizRest") : t("taskQuizMeta", { n: P.known })} action={t("start")}
+              onAction={() => startPractice(P.restDay ? { mut: shuffle(occurrences((v) => pageOfVerse(v) <= P.known)).slice(0, 15) } : { quiz: { kind: "pages", a: P.known, b: P.known }, mode: "mix" })} />
+          )}
         </div>
-        <p className="mt-3 text-[12px] text-muted">{t("hizbLegend")}</p>
-      </Card>
+      </Section>
 
-      <SectionTitle>{t("last4Weeks")}</SectionTitle>
-      <Card><Calendar /></Card>
+      <ProgressSheet open={progressOpen} onOpenChange={setProgressOpen} />
     </div>
   );
 }

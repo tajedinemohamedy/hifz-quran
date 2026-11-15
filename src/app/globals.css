@@ -1,6 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Theme: one token set, switched by data-theme on <html> (resolved from the user's choice or the system). */
+/* One design language: shadcn token names everywhere, plus three Quran-specific roles (paper, warning, success).
+   Switched by data-theme on <html>, resolved from the user's choice or the system. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @font-face {
@@ -10,78 +13,101 @@
 }
 
 :root {
-  --bg: #f5f5f7;
-  --surface: #ffffff;
-  --surface-2: #ececf0;
-  --ink: #1d1d1f;
-  --muted: #6e6e73;
-  --line: rgb(0 0 0 / 0.08);
-  --accent: #047857;
-  --accent-soft: #e2f1eb;
-  --on-accent: #ffffff;
-  --danger: #c4372b;
-  --danger-soft: #fbe8e5;
-  --gold: #9a7b2f;
-  --gold-soft: #f5eedc;
+  --radius: 0.875rem;
+  --background: #f6f5f2;
+  --foreground: #1c1c1a;
+  --card: #ffffff;
+  --card-foreground: #1c1c1a;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1a;
+  --primary: #0f7a5c;
+  --primary-foreground: #ffffff;
+  --secondary: #ecebe6;
+  --secondary-foreground: #1c1c1a;
+  --muted: #ecebe6;
+  --muted-foreground: #6f6e69;
+  --accent: #e3f1ea;
+  --accent-foreground: #0d6a50;
+  --destructive: #c4372b;
+  --warning: #a07a22;
+  --warning-soft: #f6efdc;
+  --border: rgb(0 0 0 / 0.08);
+  --input: rgb(0 0 0 / 0.12);
+  --ring: #0f7a5c;
   --paper: #fffefa;
   --paper-edge: #f0eadf;
   --paper-ink: #111111;
-  --glass: rgb(245 245 247 / 0.8);
   color-scheme: light;
 }
 [data-theme="dark"] {
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-2: #2c2c2e;
-  --ink: #f5f5f7;
-  --muted: #98989d;
-  --line: rgb(255 255 255 / 0.1);
-  --accent: #4cc19f;
-  --accent-soft: #15342b;
-  --on-accent: #06140f;
-  --danger: #ff7b6b;
-  --danger-soft: #3a1d1a;
-  --gold: #d6b45f;
-  --gold-soft: #2b2617;
-  --paper: #101010;
-  --paper-edge: #101010;
-  --paper-ink: #ededed;
-  --glass: rgb(22 22 24 / 0.8);
+  --background: #0b0b0c;
+  --foreground: #f2f2f0;
+  --card: #161618;
+  --card-foreground: #f2f2f0;
+  --popover: #1c1c1e;
+  --popover-foreground: #f2f2f0;
+  --primary: #4cc19f;
+  --primary-foreground: #06140f;
+  --secondary: #242427;
+  --secondary-foreground: #f2f2f0;
+  --muted: #242427;
+  --muted-foreground: #9a9a9f;
+  --accent: #15342b;
+  --accent-foreground: #86dcc0;
+  --destructive: #ff7b6b;
+  --warning: #d6b45f;
+  --warning-soft: #2b2617;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.14);
+  --ring: #4cc19f;
+  --paper: #121212;
+  --paper-edge: #121212;
+  --paper-ink: #ececec;
   color-scheme: dark;
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-ink: var(--ink);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
-  --color-line: var(--line);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-on-accent: var(--on-accent);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-gold: var(--gold);
-  --color-gold-soft: var(--gold-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-paper: var(--paper);
   --color-paper-ink: var(--paper-ink);
-  --color-glass: var(--glass);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
   --font-sans: var(--font-ui), system-ui, sans-serif;
   --font-quran: "warsh10", serif;
 }
 
-html, body { height: 100%; }
-body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html, body { height: 100%; }
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  button { cursor: pointer; }
 }
-button { cursor: pointer; }
-button:disabled { cursor: default; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* the mushaf page: parchment like the khatmah reader */
 .paper {
@@ -93,28 +119,24 @@ button:disabled { cursor: default; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* verse states in the reader */
-.vs { border-radius: 6px; transition: background-color .2s ease, color .2s ease; }
-.vs.weak { background: var(--danger-soft); }
-.vs.playing { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-.vs.hid .w { color: transparent; background: var(--surface-2); border-radius: 4px; }
-.vs.hint .w:not(:first-child) { color: transparent; background: var(--surface-2); border-radius: 4px; }
-.w.on { color: var(--accent); }
+.vs { border-radius: 6px; transition: background-color .25s ease, color .25s ease; }
+.vs.weak { background: color-mix(in srgb, var(--destructive) 12%, transparent); }
+.vs.playing { background: color-mix(in srgb, var(--primary) 15%, transparent); }
+.vs .w { transition: color .25s ease, background-color .25s ease; border-radius: 4px; }
+.vs.hid .w, .vs.hint .w:not(:first-child) { color: transparent; background: var(--muted); }
+.w.on { color: var(--primary); }
 
 /* recitation word states */
-.tw { border-radius: 6px; transition: color .18s ease, background-color .18s ease; }
-.tw.hid { color: transparent; background: var(--surface-2); background-clip: content-box; }
-.tw.cur { box-shadow: inset 0 -2px 0 var(--gold); }
-.tw.hid.cur { background: var(--gold-soft); }
-.tw.ok { color: var(--accent); }
-.tw.wrong { color: var(--danger); background: var(--danger-soft); }
-.tw.missed { color: var(--danger); background: var(--danger-soft); text-decoration: line-through dotted; }
-.tw.fixed, .tw.hinted { color: var(--gold); }
+.tw { border-radius: 6px; transition: color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.tw.hid { color: transparent; background: var(--muted); background-clip: content-box; }
+.tw.cur { box-shadow: inset 0 -2px 0 var(--warning); }
+.tw.hid.cur { background: var(--warning-soft); }
+.tw.ok { color: var(--primary); }
+.tw.wrong { color: var(--destructive); background: color-mix(in srgb, var(--destructive) 12%, transparent); }
+.tw.missed { color: var(--destructive); background: color-mix(in srgb, var(--destructive) 12%, transparent); text-decoration: line-through dotted; }
+.tw.fixed, .tw.hinted { color: var(--warning); }
 
-@keyframes sheet-in { from { transform: translateY(100%); } }
-@keyframes fade-in { from { opacity: 0; } }
-@keyframes flash { 0%, 60% { background: var(--gold-soft); } }
-.anim-sheet { animation: sheet-in .28s cubic-bezier(.2, .8, .2, 1); }
-.anim-fade { animation: fade-in .2s ease; }
+@keyframes flash { 0%, 60% { background: var(--warning-soft); } }
 .anim-flash { animation: flash 2.4s ease; }
 
 @media (prefers-reduced-motion: reduce) {

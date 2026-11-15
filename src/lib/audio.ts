@@ -2,6 +2,7 @@
    the same source and segment rules as the khatmah app. */
 import { createStore } from "./store";
 import { ayaCount, quran, verseIndex } from "./quran";
+import { notify } from "./notify";
 
 export const RECITER = {
   id: "mohamed-laghdaf",
@@ -17,9 +18,8 @@ export interface PlayerState {
   word: number | null; // word index inside that verse
   playing: boolean;
   loading: boolean;
-  error: boolean;
 }
-export const player = createStore<PlayerState>({ verse: null, word: null, playing: false, loading: false, error: false });
+export const player = createStore<PlayerState>({ verse: null, word: null, playing: false, loading: false });
 
 const timelines = new Map<number, Promise<Timeline>>();
 function timeline(sura: number) {
@@ -47,7 +47,7 @@ function el() {
   audio.addEventListener("playing", () => player.set({ playing: true, loading: false }));
   audio.addEventListener("pause", () => player.set({ playing: false }));
   audio.addEventListener("waiting", () => player.set({ loading: true }));
-  audio.addEventListener("error", () => player.set({ playing: false, loading: false, error: true }));
+  audio.addEventListener("error", () => { if (player.get().verse != null) failed(player.get().verse!); });
   audio.addEventListener("ended", () => {
     if (current && current.sura < 114) void playVerse(verseIndex(current.sura + 1, 1));
     else stop();
@@ -82,7 +82,8 @@ function follow() {
 export async function playVerse(i: number) {
   const [sura, aya] = quran().V[i];
   const a = el();
-  player.set({ verse: i, word: null, loading: true, error: false });
+  player.set({ verse: i, word: null, loading: true });
+  notify.dismiss("audio");
   try {
     const tl = await timeline(sura);
     const src = `${RECITER.base}/audio/${sura}.opus`;
@@ -90,7 +91,12 @@ export async function playVerse(i: number) {
     current = tl;
     const seg = tl.segs[aya - 1];
     const seek = aya === 1 ? 0 : seg ? seg.start : 0;
-    if (a.readyState < 1) await new Promise((res) => a.addEventListener("loadedmetadata", res, { once: true }));
+    if (a.readyState < 1) {
+      await new Promise((res, rej) => {
+        a.addEventListener("loadedmetadata", res, { once: true });
+        a.addEventListener("error", rej, { once: true });
+      });
+    }
     a.currentTime = seek;
     await a.play();
     follow();
@@ -99,9 +105,18 @@ export async function playVerse(i: number) {
       navigator.mediaSession.setActionHandler("play", () => void a.play());
       navigator.mediaSession.setActionHandler("pause", () => a.pause());
     }
-  } catch {
-    player.set({ loading: false, playing: false, error: true });
+  } catch (e) {
+    // a play() refused by the browser (no user gesture yet) is not a failure: the user taps play again
+    if ((e as DOMException)?.name === "NotAllowedError") return player.set({ loading: false, playing: false });
+    failed(i);
   }
+}
+
+/** Playback could not start or broke: say so and offer to retry from the same verse. */
+function failed(i: number) {
+  cancelAnimationFrame(raf);
+  player.set({ loading: false, playing: false });
+  notify.error("audioError", { id: "audio", detail: "audioErrorHint", retry: () => void playVerse(i) });
 }
 
 export function toggle(fromVerse: number) {

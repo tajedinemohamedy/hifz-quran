@@ -32,7 +32,8 @@ export function quran(): Quran {
 
 export function loadQuran(): Promise<Quran> {
   if (loading) return loading;
-  loading = Promise.all([fetch("/data/quran.json").then((r) => r.json()), fetch("/data/mut.json").then((r) => r.json())]).then(
+  const json = (url: string) => fetch(url).then((r) => { if (!r.ok) throw new Error(url); return r.json(); });
+  loading = Promise.all([json("/data/quran.json"), json("/data/mut.json")]).then(
     ([d, G]: [{ names: string[]; J: number[]; M: [number, number, number][]; T: number[][]; V: Verse[] }, Group[]]) => {
       const V = d.V;
       const T: Thumn[] = d.T.map(([h, k, v, wi, a, b, inf]) => ({ h, k, v, wi, r: [a, b], inf: !!inf }));
@@ -49,7 +50,7 @@ export function loadQuran(): Promise<Quran> {
       Q = { V, names: d.names, T, G, pageStart, pageEnd, suraStart, thumnOf, juzStart: d.J, merged: d.M };
       return Q;
     },
-  );
+  ).catch((e) => { loading = null; throw e; }); // a failed load can be retried
   return loading;
 }
 
@@ -60,7 +61,7 @@ export const verseText = (i: number) => quran().V[i][3].join(" ");
 export const ayaCount = (s: number) => quran().suraStart[s + 1] - quran().suraStart[s];
 export const pageOfSura = (s: number) => quran().V[quran().suraStart[s]][2];
 export const pageStartEnd = (p: number): [number, number] => [quran().pageStart[p], quran().pageEnd[p]];
-export const pageOfVerse =(i: number) => quran().V[i][2];
+export const pageOfVerse = (i: number) => quran().V[i][2];
 export const verseIndex = (s: number, a: number) => quran().suraStart[s] + a - 1;
 export const sameSura = (i: number, j: number) => j >= 0 && j < quran().V.length && quran().V[i][0] === quran().V[j][0];
 export function juzOf(i: number) {

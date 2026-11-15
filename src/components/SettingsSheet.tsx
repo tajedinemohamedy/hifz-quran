@@ -1,24 +1,28 @@
 "use client";
-/* All settings in one sheet: language, appearance, plan, recitation check, backup. */
+/* All settings in one sheet, in plain groups: language & look, the plan, the recitation check, backup. */
 import { useState, type ReactNode } from "react";
+import { Minus, Plus } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { backupCode, prefs, restoreBackup, updatePrefs, type Lang, type Strictness, type Theme } from "@/lib/prefs";
 import { setNextPage } from "@/lib/plan";
 import { pageParts } from "@/lib/quran";
-import { loadModelFile, send } from "@/lib/recognition";
+import { send } from "@/lib/recognition";
 import { RECITER } from "@/lib/audio";
+import { notify } from "@/lib/notify";
 import { ui } from "@/lib/ui";
-import { Button, Segmented, Sheet, Stepper, Toggle } from "./ui";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Segmented, Sheet } from "./kit";
 
 const Group = ({ title, children }: { title: string; children: ReactNode }) => (
-  <section className="mt-5 first:mt-1">
-    <h3 className="mb-2 px-1 text-[13px] font-semibold text-muted">{title}</h3>
-    <div className="divide-y divide-line rounded-2xl bg-surface px-4">{children}</div>
+  <section className="mt-6 first:mt-1">
+    <h3 className="mb-2 px-1 text-[13px] font-semibold text-muted-foreground">{title}</h3>
+    <div className="divide-y divide-border rounded-2xl bg-card px-4">{children}</div>
   </section>
 );
 const Item = ({ label, meta, children, stack }: { label: string; meta?: ReactNode; children?: ReactNode; stack?: boolean }) => (
-  <div className={`flex gap-3 py-3 ${stack ? "flex-col" : "items-center justify-between"}`}>
-    <div className="min-w-0"><div className="text-[15px]">{label}</div>{meta && <div className="text-[12px] text-muted">{meta}</div>}</div>
+  <div className={stack ? "flex flex-col gap-3 py-3.5" : "flex items-center justify-between gap-3 py-3.5"}>
+    <div className="min-w-0"><div className="text-[15px]">{label}</div>{meta && <div className="text-[12px] text-muted-foreground">{meta}</div>}</div>
     {children}
   </div>
 );
@@ -27,70 +31,76 @@ export function SettingsSheet() {
   const { t, n, sura } = useT();
   const open = ui.use((s) => s.overlay === "settings");
   const S = prefs.use((s) => s);
-  const [code, setCode] = useState<string | null>(null);
-  const [msg, setMsg] = useState("");
+  const [restoring, setRestoring] = useState<string | null>(null);
   const tz = (patch: Partial<typeof S.tz>) => {
     updatePrefs((d) => { d.tz = { ...d.tz, ...patch }; });
     const next = prefs.get().tz;
     send({ type: "opts", opts: { strict: next.strict, stopOnMistake: next.stop } });
   };
-  const nextLabel = pageParts(S.next).map((p) => `${sura(p.s)} ${n(p.from)}`).join(" · ");
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(backupCode()); notify.success("codeCopied", undefined, "backup"); }
+    catch { setRestoring(backupCode()); notify.info("copyManually", undefined, "backup"); }
+  };
+  const restore = () => {
+    try { restoreBackup(restoring ?? ""); setRestoring(null); notify.success("restored", undefined, "backup"); }
+    catch { notify.error("invalidCode", { id: "backup" }); }
+  };
 
   return (
-    <Sheet open={open} onClose={() => ui.set({ overlay: null })} title={t("settings")} tall>
-      <Group title={t("language")}>
-        <Item label={t("language")}>
+    <Sheet open={open} onOpenChange={(o) => !o && ui.set({ overlay: null })} title={t("settings")} tall>
+      <Group title={t("general")}>
+        <Item label={t("language")} stack>
           <Segmented<Lang> value={S.lang} onChange={(lang) => updatePrefs((d) => { d.lang = lang; })} options={[["ar", "العربية"], ["fr", "Français"], ["en", "English"]]} />
         </Item>
-        <Item label={t("theme")}>
-          <Segmented<Theme> value={S.theme} onChange={(theme) => updatePrefs((d) => { d.theme = theme; })} options={[["", t("themeAuto")], ["light", t("themeLight")], ["dark", t("themeDark")]]} />
+        <Item label={t("theme")} stack>
+          <Segmented<Theme | "auto"> value={S.theme || "auto"} onChange={(v) => updatePrefs((d) => { d.theme = v === "auto" ? "" : v; })}
+            options={[["auto", t("themeAuto")], ["light", t("themeLight")], ["dark", t("themeDark")]]} />
         </Item>
       </Group>
 
       <Group title={t("plan")}>
-        <Item label={t("nextPage")} meta={nextLabel}>
-          <Stepper label={t("nextPage")} value={n(S.next)} onChange={(d) => setNextPage(S.next + d)} />
+        <Item label={t("nextPage")} meta={pageParts(S.next).map((p) => `${sura(p.s)} ${n(p.from)}`).join(" · ")}>
+          <div className="flex items-center gap-1">
+            <Button variant="secondary" size="icon" className="rounded-full" aria-label="−" onClick={() => setNextPage(S.next - 1)}><Minus /></Button>
+            <span className="min-w-10 text-center text-[17px] font-semibold tabular-nums">{n(S.next)}</span>
+            <Button variant="secondary" size="icon" className="rounded-full" aria-label="+" onClick={() => setNextPage(S.next + 1)}><Plus /></Button>
+          </div>
         </Item>
-        <Item label={t("oldPerDay")}>
-          <Segmented<number> value={S.oldPerDay} onChange={(v) => updatePrefs((d) => { d.oldPerDay = v; })} options={[5, 10, 15, 20].map((v) => [v, n(v)])} />
+        <Item label={t("oldPerDay")} stack>
+          <Segmented<string> value={String(S.oldPerDay)} onChange={(v) => updatePrefs((d) => { d.oldPerDay = +v; })} options={[5, 10, 15, 20].map((v) => [String(v), n(v)])} />
         </Item>
         <Item label={t("sundayRest")} meta={t("sundayRestMeta")}>
-          <Toggle label={t("sundayRest")} on={S.sundayOff} onChange={(v) => updatePrefs((d) => { d.sundayOff = v; })} />
+          <Switch checked={S.sundayOff} onCheckedChange={(v) => updatePrefs((d) => { d.sundayOff = v; })} aria-label={t("sundayRest")} />
         </Item>
       </Group>
 
       <Group title={t("recitation")}>
-        <Item label={t("strictness")}>
+        <Item label={t("strictness")} stack>
           <Segmented<Strictness> value={S.tz.strict} onChange={(strict) => tz({ strict })} options={[["relaxed", t("relaxed")], ["normal", t("normal")], ["strict", t("strict")]]} />
         </Item>
-        <Item label={t("stopOnMistake")}><Toggle label={t("stopOnMistake")} on={S.tz.stop} onChange={(stop) => tz({ stop })} /></Item>
-        <Item label={t("vibrate")}><Toggle label={t("vibrate")} on={S.tz.vibrate} onChange={(vibrate) => tz({ vibrate })} /></Item>
-        <Item label={t("modelFile")} meta={t("modelFileHint")} stack>
-          <input type="file" accept=".onnx" className="text-[13px] text-muted file:me-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-ink"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void loadModelFile(f); }} />
-        </Item>
+        <Item label={t("stopOnMistake")}><Switch checked={S.tz.stop} onCheckedChange={(stop) => tz({ stop })} aria-label={t("stopOnMistake")} /></Item>
+        <Item label={t("vibrate")}><Switch checked={S.tz.vibrate} onCheckedChange={(vibrate) => tz({ vibrate })} aria-label={t("vibrate")} /></Item>
         <Item label={t("reciter")} meta={RECITER.name} />
       </Group>
 
       <Group title={t("backup")}>
         <Item label={t("backup")} meta={t("backupHint")} stack>
           <div className="flex gap-2">
-            <Button small onClick={async () => { const c = backupCode(); try { await navigator.clipboard.writeText(c); setMsg(t("copied")); } catch { setCode(c); } }}>{t("copyCode")}</Button>
-            <Button small onClick={() => { setCode(""); setMsg(""); }}>{t("restore")}</Button>
-            {msg && <span className="self-center text-[13px] text-muted">{msg}</span>}
+            <Button variant="secondary" onClick={copy}>{t("copyCode")}</Button>
+            <Button variant="secondary" onClick={() => setRestoring("")}>{t("restore")}</Button>
           </div>
-          {code != null && (
-            <div className="flex flex-col gap-2">
-              <textarea dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("pasteCode")}
-                className="h-24 w-full rounded-xl bg-surface-2 p-2 font-mono text-[11px] outline-none" />
-              <Button small tone="primary" className="self-start" onClick={() => { try { restoreBackup(code); setCode(null); setMsg(""); } catch { setMsg(t("invalidCode")); } }}>{t("restore")}</Button>
+          {restoring != null && (
+            <div className="flex flex-col gap-2 duration-200 animate-in fade-in slide-in-from-top-1">
+              <textarea dir="ltr" value={restoring} onChange={(e) => setRestoring(e.target.value)} placeholder={t("pasteCode")}
+                className="h-24 w-full rounded-xl bg-muted p-3 font-mono text-[11px] outline-none focus:ring-2 focus:ring-ring/40" />
+              <Button className="self-start" onClick={restore}>{t("restore")}</Button>
             </div>
           )}
         </Item>
       </Group>
 
       <Group title={t("about")}>
-        <p className="py-3 text-[13px] leading-relaxed text-muted">{t("aboutText")}</p>
+        <p className="py-3.5 text-[13px] leading-relaxed text-muted-foreground">{t("aboutText")}</p>
       </Group>
     </Sheet>
   );

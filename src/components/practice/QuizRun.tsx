@@ -8,7 +8,8 @@ import { dayPlan, markToday } from "@/lib/plan";
 import { verseText, words, quran } from "@/lib/quran";
 import { endPractice, startPractice } from "@/lib/practice";
 import { goTab } from "@/lib/ui";
-import { Button, Feedback, Option, Session } from "../ui";
+import { Button } from "@/components/ui/button";
+import { Choice, Session, Verdict } from "../kit";
 
 interface Item { make: () => Question | null; first: boolean }
 interface Run { queue: Item[]; cur: { item: Item; q: Question } | null; total: number; done: number; ok1: number; missed: number[]; finished: boolean }
@@ -29,8 +30,8 @@ function advance(r: Run): Run {
 const VerseCard = ({ verse }: { verse: number }) => {
   const { where } = useT();
   return (
-    <div className="rounded-2xl bg-surface p-4">
-      <div className="text-[12px] text-muted">{where(verse, true)}</div>
+    <div className="rounded-2xl bg-card p-4">
+      <div className="text-[12px] text-muted-foreground">{where(verse, true)}</div>
       <div className="quran text-[22px] leading-[1.95]" dir="rtl">{verseText(verse)}</div>
     </div>
   );
@@ -68,7 +69,7 @@ export function QuizRun({ scope, mode }: { scope: Scope; mode: QuizMode }) {
   const head = `${label} · ${t("ofTotal", { a: run.done, b: run.total })}${item.first ? "" : " · " + t("repeated")}`;
 
   return (
-    <Session onEnd={() => setRun((r) => ({ ...r, finished: true }))} endLabel={t("end")} label={head} progress={run.done / Math.max(1, run.total)}>
+    <Session onClose={() => setRun((r) => ({ ...r, finished: true }))} label={head} progress={run.done / Math.max(1, run.total)}>
       <div className="flex flex-col gap-3">
         {q.type === "mc" ? (
           <>
@@ -76,38 +77,38 @@ export function QuizRun({ scope, mode }: { scope: Scope; mode: QuizMode }) {
               {q.ask === "next" ? t("askNext") : q.ask === "prev" ? t("askPrev") : q.ask === "blank" ? t("askBlank") : t("askThumn", { h: q.h!, k: thumnNo(q.h!, q.k!) })}
             </div>
             {q.ask !== "thumn" && (
-              <div className="quran rounded-2xl bg-surface p-4 text-[23px] leading-[2]" dir="rtl">
-                {words(q.verse).map((w, k) => (k === q.blank ? <span key={k} className="mx-1 inline-block w-16 border-b-2 border-dashed border-accent">&nbsp;</span> : <span key={k}>{w} </span>))}
-                <span className="font-sans text-[13px] text-accent">({n(quran().V[q.verse][1])})</span>
+              <div className="quran rounded-2xl bg-card p-4 text-[23px] leading-[2]" dir="rtl">
+                {words(q.verse).map((w, k) => (k === q.blank ? <span key={k} className="mx-1 inline-block w-16 border-b-2 border-dashed border-primary">&nbsp;</span> : <span key={k}>{w} </span>))}
+                <span className="font-sans text-[13px] text-primary">({n(quran().V[q.verse][1])})</span>
               </div>
             )}
             {q.opts.map((o, k) => (
-              <Option key={k} disabled={answer != null} onClick={() => { setAnswer(k); result(o.ok); }}
-                state={answer == null ? undefined : o.ok ? "ok" : answer === k ? "no" : undefined}>{o.text}</Option>
+              <Choice key={k} disabled={answer != null} onClick={() => { setAnswer(k); result(o.ok); }}
+                state={answer == null ? undefined : o.ok ? "right" : answer === k ? "wrong" : undefined}>{o.text}</Choice>
             ))}
             {typeof answer === "number" && (
               <>
-                <Feedback ok={q.opts[answer].ok}>{q.opts[answer].ok ? t("correct") : t("wrongBack")}</Feedback>
+                <Verdict right={q.opts[answer].ok}>{q.opts[answer].ok ? t("correct") : t("wrongBack")}</Verdict>
                 <VerseCard verse={q.reveal} />
-                <Button tone="primary" onClick={next} autoFocus>{t("next")}</Button>
+                <Button size="lg" className="h-12 rounded-xl" onClick={next} autoFocus>{t("next")}</Button>
               </>
             )}
           </>
         ) : (
           <>
             <div className="text-[17px] font-semibold">{t("askFinish")}</div>
-            <div className="quran rounded-2xl bg-surface p-4 text-[23px] leading-[2]" dir="rtl">
+            <div className="quran rounded-2xl bg-card p-4 text-[23px] leading-[2]" dir="rtl">
               {words(q.verse).slice(0, q.cut).join(" ")}{" "}
-              <span className={answer === "revealed" ? "text-accent" : "text-muted"}>{answer === "revealed" ? words(q.verse).slice(q.cut).join(" ") : "…"}</span>
+              <span className={answer === "revealed" ? "text-primary" : "text-muted-foreground"}>{answer === "revealed" ? words(q.verse).slice(q.cut).join(" ") : "…"}</span>
             </div>
             {answer == null ? (
-              <Button tone="primary" onClick={() => setAnswer("revealed")}>{t("reveal")}</Button>
+              <Button size="lg" className="h-12 rounded-xl" onClick={() => setAnswer("revealed")}>{t("reveal")}</Button>
             ) : (
               <>
-                <p className="text-[13px] text-muted">{t("honest")}</p>
+                <p className="text-[13px] text-muted-foreground">{t("honest")}</p>
                 <div className="flex gap-2">
-                  <Button tone="primary" className="flex-1" onClick={() => { result(true); next(); }}>{t("gotIt")}</Button>
-                  <Button className="flex-1" onClick={() => { result(false); next(); }}>{t("missedIt")}</Button>
+                  <Button size="lg" className="h-12 flex-1 rounded-xl" onClick={() => { result(true); next(); }}>{t("gotIt")}</Button>
+                  <Button size="lg" variant="secondary" className="h-12 flex-1 rounded-xl" onClick={() => { result(false); next(); }}>{t("missedIt")}</Button>
                 </div>
               </>
             )}
@@ -128,21 +129,21 @@ function QuizEnd({ run, label, scope, mode }: { run: Run; label: string; scope: 
     if (scope.kind === "pages" && scope.b === dayPlan().known && !prefs.get().log[todayISO()]?.quiz) markToday("quiz");
   }, [complete, scope, mode, pct]);
   return (
-    <Session onEnd={endPractice} endLabel={t("close")} label={label} progress={1}>
-      <div className="rounded-3xl bg-surface p-6 text-center">
+    <Session onClose={endPractice} label={label} progress={1}>
+      <div className="rounded-3xl bg-card p-6 text-center">
         <div className="text-6xl font-bold tabular-nums">{t("percent", { n: pct })}</div>
-        <div className="mt-1 text-[13px] text-muted">{t("firstTry", { a: run.ok1, b: run.done })}</div>
+        <div className="mt-1 text-[13px] text-muted-foreground">{t("firstTry", { a: run.ok1, b: run.done })}</div>
         <p className="mt-3">{pct >= 90 ? t("scoreGreat") : pct >= 80 ? t("scoreGood") : t("scoreLow")}</p>
       </div>
       {run.missed.length > 0 && (
         <>
-          <h3 className="mb-2 mt-6 text-[13px] font-semibold text-muted">{t("toReview", { n: run.missed.length })}</h3>
+          <h3 className="mb-2 mt-6 text-[13px] font-semibold text-muted-foreground">{t("toReview", { n: run.missed.length })}</h3>
           <div className="flex flex-col gap-2">{[...run.missed].sort((a, b) => a - b).map((v) => <VerseCard key={v} verse={v} />)}</div>
         </>
       )}
       <div className="mt-5 flex gap-2">
-        <Button tone="primary" onClick={() => startPractice({ quiz: scope, mode })}>{t("again")}</Button>
-        <Button onClick={() => { endPractice(); goTab("today"); }}>{t("home")}</Button>
+        <Button size="lg" className="h-12 flex-1 rounded-xl" onClick={() => startPractice({ quiz: scope, mode })}>{t("again")}</Button>
+        <Button size="lg" variant="secondary" className="h-12 flex-1 rounded-xl" onClick={() => { endPractice(); goTab("today"); }}>{t("home")}</Button>
       </div>
     </Session>
   );

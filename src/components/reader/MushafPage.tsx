@@ -1,7 +1,7 @@
 "use client";
 /* One mushaf page: flowing Warsh text fitted to the screen, with every reader state drawn on the same markup. */
 import { memo, useLayoutEffect, useRef, type ReactNode } from "react";
-import { BASMALA, hizbOf, juzOf, pageStartEnd, quran, range } from "@/lib/quran";
+import { BASMALA, hizbOf, pageStartEnd, quran, range } from "@/lib/quran";
 import { useT } from "@/lib/i18n";
 import { prefs } from "@/lib/prefs";
 import { ui } from "@/lib/ui";
@@ -33,13 +33,13 @@ function useFitText(key: unknown) {
 }
 
 const VerseNumber = ({ n }: { n: string }) => (
-  <span className="mx-[0.15em] inline-grid h-[1.45em] min-w-[1.45em] place-items-center rounded-full border border-accent/50 px-[0.2em] align-middle font-sans text-[0.5em] leading-none text-accent">{n}</span>
+  <span className="mx-[0.15em] inline-grid h-[1.45em] min-w-[1.45em] place-items-center rounded-full border border-primary/50 px-[0.2em] align-middle font-sans text-[0.5em] leading-none text-primary">{n}</span>
 );
 
 function SurahBanner({ s }: { s: number }) {
   const { n } = useT();
   return (
-    <div className="my-[0.25em] flex items-center justify-center gap-[0.5em] rounded-[0.4em] border border-accent/30 bg-accent-soft/60 py-[0.12em] text-[0.8em] text-accent">
+    <div className="my-[0.25em] flex items-center justify-center gap-[0.5em] rounded-[0.4em] border border-primary/25 bg-accent/70 py-[0.12em] text-[0.8em] text-accent-foreground">
       <span className="font-sans text-[0.55em] opacity-70">{n(s)}</span>
       <span>سُورَةُ {quran().names[s - 1]}</span>
     </div>
@@ -68,12 +68,12 @@ export const MushafPage = memo(function MushafPage({ p }: { p: number }) {
       body.push(<SurahBanner key={"s" + s} s={s} />);
       if (s !== 1 && s !== 9) body.push(<div key={"b" + s} className="text-center">{BASMALA.join(" ")}</div>);
     }
-    const hidden = (mode === "hide" || mode === "hint") && !revealed.includes(i);
-    const cls = ["vs", weak[i] ? "weak" : "", pv === i ? "playing" : "", hidden ? mode === "hide" ? "hid" : "hint" : "", flash === i ? "anim-flash" : ""].join(" ");
+    const cover = mode === "memorize" ? (revealed[i] === 2 ? "" : revealed[i] === 1 ? "hint" : "hid") : "";
+    const cls = ["vs", weak[i] ? "weak" : "", pv === i ? "playing" : "", cover, flash === i ? "anim-flash" : ""].join(" ");
     body.push(
       <span key={i} data-v={i} className={cls}>
         {w.map((word, wi) => {
-          const thumn = marks.includes(wi) ? <span className="text-gold">۞ </span> : null;
+          const thumn = marks.includes(wi) ? <span className="text-warning">۞ </span> : null;
           if (reciting) {
             const x = r.st[k], kk = k++;
             const c = x ? (x.s ? WORD_CLASS[x.s] : x.shown || r.showText ? "" : "hid") + (kk === r.cur ? " cur" : "") + (x.hint && x.s < 2 ? " hinted" : "") : "";
@@ -88,15 +88,15 @@ export const MushafPage = memo(function MushafPage({ p }: { p: number }) {
 
   const first = V[a];
   return (
-    <article className="paper flex h-full flex-col rounded-[22px] px-4 pb-2 pt-3 shadow-[0_1px_3px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.05)] ring-1 ring-line">
-      <header className="flex justify-between text-[12px] text-muted">
+    <article className="paper flex h-full flex-col rounded-[22px] px-4 pb-2 pt-3 shadow-[0_1px_3px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.05)] ring-1 ring-border">
+      <header className="flex justify-between text-[12px] text-muted-foreground">
         <span>{quran().names[first[0] - 1]}</span>
-        <span>{t("hizb", { n: hizbOf(a) })} · {t("juz", { n: juzOf(a) })}</span>
+        <span>{t("hizb", { n: hizbOf(a) })}</span>
       </header>
       <div ref={box} className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden py-1">
         <div ref={text} dir="rtl" className="quran text-justify leading-[2.05] [text-align-last:center]">{body}</div>
       </div>
-      <footer className="text-center text-[12px] tabular-nums text-muted">{n(p)}</footer>
+      <footer className="text-center text-[12px] tabular-nums text-muted-foreground">{n(p)}</footer>
     </article>
   );
 });
