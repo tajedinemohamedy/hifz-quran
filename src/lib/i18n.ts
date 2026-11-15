@@ -104,6 +104,10 @@ const en = {
   backup: "Backup", backupHint: "Progress is saved in this browser. Copy the code to move it to another device (old app codes work too).",
   copyCode: "Copy code", restore: "Restore", pasteCode: "Paste the code here", codeCopied: "Backup code copied",
   copyManually: "Copy the code below", restored: "Progress restored", invalidCode: "That code isn't valid · make sure you copied all of it",
+  undo: "Undo", restoreUndone: "Your previous progress is back", undoFailed: "Nothing to undo",
+  saveFailed: "Couldn't save your progress", saveFailedHint: "Storage may be full or blocked (private browsing). Copy a backup code to be safe.",
+  storageBlocked: "This browser blocks saving · your progress won't be kept",
+  progressDamaged: "Your saved progress couldn't be read", progressDamagedHint: "A copy was kept aside. Restore a backup code in Settings, or start again.",
   about: "About",
   aboutText: "Text and font: King Fahd Complex (KFGQPC) Warsh v10, Warsh verse count. Recitation: Sheikh Mohamed Laghdaf, timings from the khatmah project. The recitation check runs on your device and judges words only (missing, different, similar passage), not tajweed: your teacher has the final word.",
 };
@@ -201,6 +205,10 @@ const fr: Dict = {
   backup: "Sauvegarde", backupHint: "La progression est enregistrée dans ce navigateur. Copiez le code pour la transférer (les codes de l'ancienne app fonctionnent aussi).",
   copyCode: "Copier le code", restore: "Restaurer", pasteCode: "Collez le code ici", codeCopied: "Code de sauvegarde copié",
   copyManually: "Copiez le code ci-dessous", restored: "Progression restaurée", invalidCode: "Code invalide · vérifiez qu'il est complet",
+  undo: "Annuler", restoreUndone: "Votre progression précédente est revenue", undoFailed: "Rien à annuler",
+  saveFailed: "Impossible d'enregistrer votre progression", saveFailedHint: "Le stockage est peut-être plein ou bloqué (navigation privée). Copiez un code de sauvegarde par sécurité.",
+  storageBlocked: "Ce navigateur bloque l'enregistrement · votre progression ne sera pas gardée",
+  progressDamaged: "Votre progression enregistrée est illisible", progressDamagedHint: "Une copie a été mise de côté. Restaurez un code de sauvegarde dans Réglages, ou recommencez.",
   about: "À propos",
   aboutText: "Texte et police : Complexe du Roi Fahd (KFGQPC) Warsh v10, numérotation de Warsh. Récitation : Cheikh Mohamed Laghdaf, minutage du projet khatmah. La vérification fonctionne sur l'appareil et juge les mots seulement (manquant, différent, passage similaire), pas le tajwid : votre enseignant a le dernier mot.",
 };
@@ -295,6 +303,10 @@ const ar: Dict = {
   backup: "النسخ الاحتياطي", backupHint: "تقدّمك محفوظ في هذا المتصفح. انسخ الرمز لتنقله إلى جهاز آخر (رموز التطبيق السابق تعمل أيضًا).",
   copyCode: "انسخ الرمز", restore: "استرجع", pasteCode: "الصق الرمز هنا", codeCopied: "نُسخ رمز النسخة",
   copyManually: "انسخ الرمز أدناه", restored: "استُرجع تقدّمك", invalidCode: "الرمز غير صالح · تأكد أنك نسخته كاملًا",
+  undo: "تراجع", restoreUndone: "عاد تقدّمك السابق", undoFailed: "لا شيء للتراجع عنه",
+  saveFailed: "تعذّر حفظ تقدّمك", saveFailedHint: "قد تكون الذاكرة ممتلئة أو محظورة (التصفح الخاص). انسخ رمز النسخة احتياطًا.",
+  storageBlocked: "هذا المتصفح يمنع الحفظ · لن يُحفظ تقدّمك",
+  progressDamaged: "تعذّرت قراءة تقدّمك المحفوظ", progressDamagedHint: "حُفظت نسخة جانبًا. استرجع رمز نسخة من الإعدادات، أو ابدأ من جديد.",
   about: "عن التطبيق",
   aboutText: "النص والخط: مجمع الملك فهد لطباعة المصحف الشريف، رواية ورش الإصدار ١٠، بعدّ ورش. التلاوة: الشيخ محمد لغظف، والتوقيت من مشروع khatmah. التسميع يعمل على جهازك ويحكم على الكلمات فقط (الناقصة، والمختلفة، والانتقال إلى متشابه) لا على التجويد: صحّح مع شيخك.",
 };

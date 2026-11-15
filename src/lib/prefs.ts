@@ -1,4 +1,4 @@
-/* The user's progress and settings: one persisted object, same shape (v:1) as the hifz-app backup code. */
+/* The user's progress and settings: one object, same shape (v:1) as the hifz-app backup code. Persisted by storage.ts. */
 import { createStore } from "./store";
 
 export type Lang = "ar" | "fr" | "en";
@@ -43,21 +43,11 @@ const fresh = (): Prefs => ({
 export const prefs = createStore<Prefs>(fresh());
 
 /** Merges a stored or imported object over the defaults; null when it is not a v1 state. */
-function parse(raw: unknown): Prefs | null {
+export function parsePrefs(raw: unknown): Prefs | null {
   const s = raw as Partial<Prefs> | null;
   if (!s || s.v !== 1) return null;
   const f = fresh();
   return { ...f, ...s, tz: { ...f.tz, ...s.tz } };
-}
-
-export function hydratePrefs() {
-  try {
-    const s = parse(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"));
-    if (s) prefs.set(s);
-  } catch {}
-  prefs.subscribe(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs.get())); } catch {}
-  });
 }
 
 /** Every progress change goes through here: edit a draft copy, then publish it. */
@@ -73,13 +63,6 @@ export const toggleStar = (group: number) => updatePrefs((S) => toggleIn(S.stars
 export const toggleBookmark = (page: number) => updatePrefs((S) => toggleIn(S.bookmarks, page));
 export const toggleWeak = (verse: number) => updatePrefs((S) => { if (S.weak[verse]) delete S.weak[verse]; else S.weak[verse] = 1; });
 export const addWeak = (verses: number[]) => updatePrefs((S) => verses.forEach((v) => (S.weak[v] = 1)));
-
-export const backupCode =() => btoa(unescape(encodeURIComponent(JSON.stringify(prefs.get()))));
-export function restoreBackup(code: string) {
-  const s = parse(JSON.parse(decodeURIComponent(escape(atob(code.trim())))));
-  if (!s) throw new Error("invalid");
-  prefs.set(s);
-}
 
 export const todayISO = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

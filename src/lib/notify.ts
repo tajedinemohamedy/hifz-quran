@@ -8,7 +8,8 @@ const t = (k: Key, v?: Vars) => translator(prefs.get().lang).t(k, v);
 
 /** `id` makes a repeated message update in place instead of stacking. */
 export const notify = {
-  success: (k: Key, v?: Vars, id?: string) => toast.success(t(k, v), { id }),
+  success: (k: Key, v?: Vars, id?: string, action?: { label: Key; onClick: () => void }) =>
+    toast.success(t(k, v), { id, action: action && { label: t(action.label), onClick: action.onClick } }),
   info: (k: Key, v?: Vars, id?: string) => toast(t(k, v), { id }),
   warning: (k: Key, v?: Vars, id?: string) => toast.warning(t(k, v), { id }),
   error: (k: Key, opts: { vars?: Vars; id?: string; retry?: () => void; detail?: Key } = {}) =>

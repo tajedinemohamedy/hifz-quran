@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { Minus, Plus } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { backupCode, prefs, restoreBackup, updatePrefs, type Lang, type Strictness, type Theme } from "@/lib/prefs";
+import { prefs, updatePrefs, type Lang, type Strictness, type Theme } from "@/lib/prefs";
+import { backupCode, restoreBackup, undoRestore } from "@/lib/storage";
 import { setNextPage } from "@/lib/plan";
 import { pageParts } from "@/lib/quran";
 import { send } from "@/lib/recognition";
@@ -42,7 +43,7 @@ export function SettingsSheet() {
     catch { setRestoring(backupCode()); notify.info("copyManually", undefined, "backup"); }
   };
   const restore = () => {
-    try { restoreBackup(restoring ?? ""); setRestoring(null); notify.success("restored", undefined, "backup"); }
+    try { restoreBackup(restoring ?? ""); setRestoring(null); notify.success("restored", undefined, "backup", { label: "undo", onClick: undoRestore }); }
     catch { notify.error("invalidCode", { id: "backup" }); }
   };
 

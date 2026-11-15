@@ -5,7 +5,8 @@ import { BookOpen, GraduationCap, RotateCcw, Sun, WifiOff } from "lucide-react";
 import { Direction } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { loadQuran } from "@/lib/quran";
-import { hydratePrefs, prefs } from "@/lib/prefs";
+import { prefs } from "@/lib/prefs";
+import { startStorage } from "@/lib/storage";
 import { dirOf, useT, type Key } from "@/lib/i18n";
 import { goTab, ui, type Tab } from "@/lib/ui";
 import { practice } from "@/lib/practice";
@@ -20,19 +21,20 @@ import { IndexSheet } from "./IndexSheet";
 import { SettingsSheet } from "./SettingsSheet";
 import { Onboarding } from "./Onboarding";
 
-/** Keeps <html> lang, dir and theme in sync with the settings (and the system theme when on auto). */
+/** Keeps <html> lang, dir and theme in sync with the settings (and the system theme when on auto).
+    The effects read the live store, which storage has already loaded, so the first frame never flashes defaults. */
 function useDocumentSettings() {
   const lang = prefs.use((s) => s.lang), theme = prefs.use((s) => s.theme);
   const [resolved, setResolved] = useState<"light" | "dark">("light");
   useEffect(() => {
-    const d = document.documentElement;
-    d.lang = lang;
-    d.dir = dirOf(lang);
+    const d = document.documentElement, current = prefs.get().lang;
+    d.lang = current;
+    d.dir = dirOf(current);
   }, [lang]);
   useEffect(() => {
     const mq = matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const r = theme || (mq.matches ? "dark" : "light");
+      const r = prefs.get().theme || (mq.matches ? "dark" : "light");
       document.documentElement.dataset.theme = r;
       setResolved(r);
     };
@@ -95,13 +97,7 @@ function Shell() {
 
 function Ready() {
   const confirmed = prefs.use((s) => s.confirmed);
-  const { dir, theme } = useDocumentSettings();
-  return (
-    <Direction.Provider dir={dir}>
-      {confirmed ? <Shell /> : <Onboarding />}
-      <Toaster dir={dir} theme={theme} />
-    </Direction.Provider>
-  );
+  return confirmed ? <Shell /> : <Onboarding />;
 }
 
 /** Loading, or the reason loading failed with a way to retry: never an endless spinner. */
@@ -126,10 +122,16 @@ export function App() {
   const load = () => void loadQuran().then(() => setState("ready"), () => setState("failed"));
   const retry = () => { setState("loading"); load(); };
   useEffect(() => {
-    hydratePrefs();
+    startStorage();
     ui.set({ page: prefs.get().lastPage });
     load();
     if ("serviceWorker" in navigator && location.hostname !== "localhost") void navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
-  return state === "ready" ? <Ready /> : <Boot failed={state === "failed"} retry={retry} />;
+  const { dir, theme } = useDocumentSettings();
+  return (
+    <Direction.Provider dir={dir}>
+      {state === "ready" ? <Ready /> : <Boot failed={state === "failed"} retry={retry} />}
+      <Toaster dir={dir} theme={theme} />
+    </Direction.Provider>
+  );
 }
